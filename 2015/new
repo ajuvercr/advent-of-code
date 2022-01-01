@@ -1,0 +1,20 @@
+
+# day=$(date '+%d')
+day=${day:-$(date '+%-d')}
+echo getting $day
+
+if [ ! -f src/day_${day}.rs ]; then
+    cat > src/day_${day}.rs << EOF
+pub fn solve(file: &str) {
+
+}
+EOF
+
+    sed -i "2 imod day_${day};" src/main.rs
+    p=$(($day + 11)) 
+    sed -i "$p i    \"${day}\" => day_${day}::solve(&location)," src/main.rs
+    cargo fmt
+fi
+
+curl -H "Cookie: session=$AOCTOKEN" https://adventofcode.com/2015/day/$day/input > input/${day}.txt
+
