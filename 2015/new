@@ -1,6 +1,6 @@
 
 # day=$(date '+%d')
-day=${day:-$(date '+%-d')}
+day=${1:-$(date '+%-d')}
 echo getting $day
 
 if [ ! -f src/day_${day}.rs ]; then
