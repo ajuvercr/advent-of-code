@@ -32,7 +32,7 @@ impl Present {
         let r = 2 * (self.h + self.l);
         let f = 2 * (self.h + self.w);
         let t = 2 * (self.l + self.w);
-        
+
         r.min(f.min(t)) + self.volume()
     }
 }
