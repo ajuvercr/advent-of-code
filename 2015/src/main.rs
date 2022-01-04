@@ -1,4 +1,5 @@
 mod day_1;
+mod day_7;
 mod day_2;
 mod day_3;
 pub mod parser;
@@ -14,6 +15,7 @@ fn main() {
         "3" => day_3::solve(&location),
         "1" => day_1::solve(&location),
         "2" => day_2::solve(&location),
+"7" => day_7::solve(&location),
         _ => {}
     }
 }

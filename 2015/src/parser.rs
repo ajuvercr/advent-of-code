@@ -26,6 +26,31 @@ impl<T: Parser> FromStr for Wrapper<T> {
     }
 }
 
+pub struct WS;
+impl Parser for WS {
+    fn parse<'a>(s: &'a str) -> Option<(Self, &'a str)> {
+        let s = s.trim_start();
+        (WS, s).into()
+    }
+}
+
+impl Parser for char {
+    fn parse<'a>(s: &'a str) -> Option<(Self, &'a str)> {
+        s.chars().next().map(|x: char| (x, &s[1..]))
+    }
+}
+
+pub struct Word(pub String);
+impl Parser for Word {
+    fn parse<'a>(s: &'a str) -> Option<(Self, &'a str)> {
+        let w: String = s.chars().take_while(|&x| !x.is_ascii_whitespace()).collect();
+        if w.len() == 0 { return None; }
+
+        let s = &s[w.len()..];
+        (Word(w), s).into()
+    }
+}
+
 macro_rules! parse_integer {
     ($t:ty) => {
         impl Parser for $t {
@@ -42,6 +67,7 @@ macro_rules! parse_integer {
     };
 }
 parse_integer!(usize);
+parse_integer!(u16);
 parse_integer!(u32);
 parse_integer!(u64);
 parse_integer!(isize);
