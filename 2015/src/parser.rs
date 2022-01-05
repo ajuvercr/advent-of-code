@@ -43,8 +43,13 @@ impl Parser for char {
 pub struct Word(pub String);
 impl Parser for Word {
     fn parse<'a>(s: &'a str) -> Option<(Self, &'a str)> {
-        let w: String = s.chars().take_while(|&x| !x.is_ascii_whitespace()).collect();
-        if w.len() == 0 { return None; }
+        let w: String = s
+            .chars()
+            .take_while(|&x| !x.is_ascii_whitespace())
+            .collect();
+        if w.len() == 0 {
+            return None;
+        }
 
         let s = &s[w.len()..];
         (Word(w), s).into()
