@@ -1,4 +1,4 @@
-use std::io::{stdin, BufRead};
+use std::io::BufRead;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum Action {
