@@ -60,6 +60,7 @@ pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
                 total |= 1 << num;
             }
         }
+
         if P1 {
             prios += (left & right).trailing_zeros();
         }
