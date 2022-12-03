@@ -34,32 +34,47 @@ fn input_to_number(input: char) -> u16 {
     panic!();
 }
 
-pub fn solve(input: impl BufRead) -> Option<()> {
-    let mut lines = input.lines();
-    let mut prios = 0;
-    let mut organizer = BadgeOrganizer::default();
+pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
+    let mut lines = buf.lines();
+    let mut prios = c!(u32::default, P1);
+    let mut organizer = c!(BadgeOrganizer::default, P2);
 
     while let Some(Ok(l)) = lines.next() {
-        let mut total: u64 = 0;
-        let mut left: u64 = 0;
-        let mut right: u64 = 0;
+        let mut total: u64 = c!(u64::default, P2);
+
+        let mut left: u64 = c!(u64::default, P1);
+        let mut right: u64 = c!(u64::default, P1);
 
         for (i, x) in l.char_indices() {
             let num = input_to_number(x);
-            total |= 1 << num;
-            if i < l.len() / 2 {
-                left |= 1 << num;
-            } else {
-                right |= 1 << num;
+
+            if P1 {
+                if i < l.len() / 2 {
+                    left |= 1 << num;
+                } else {
+                    right |= 1 << num;
+                }
+            }
+
+            if P2 {
+                total |= 1 << num;
             }
         }
+        if P1 {
+            prios += (left & right).trailing_zeros();
+        }
 
-        organizer.bump(total);
-        prios += (left & right).trailing_zeros();
+        if P2 {
+            organizer.bump(total);
+        }
     }
 
-    println!("part 1 {}", prios);
-    println!("part 2 {}", organizer.prios);
+    if P1 {
+        println!("part 1 {}", prios);
+    }
+    if P2 {
+        println!("part 2 {}", organizer.prios);
+    }
 
     Some(())
 }

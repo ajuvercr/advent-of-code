@@ -61,21 +61,32 @@ impl From<char> for Action {
     }
 }
 
-pub fn solve() -> Option<()> {
-    let mut lines = stdin().lock().lines();
-    let mut total = 0;
-    let mut total2 = 0;
+pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
+    let mut lines = buf.lines();
+    let mut total = c!(usize::default, P1);
+    let mut total2 = c!(usize::default, P2);
+
     while let Some(Ok(l)) = lines.next() {
         let mut chs = l.chars();
         let oponent: Action = chs.next()?.into();
         chs.next();
         let me: Action = chs.next()?.into();
-        let me2 = oponent.part2(me);
 
-        total += me.points() + me.wins(&oponent);
-        total2 += me2.points() + me2.wins(&oponent);
+        if P1 {
+            total += me.points() + me.wins(&oponent);
+        }
+
+        if P2 {
+            let me2 = oponent.part2(me);
+            total2 += me2.points() + me2.wins(&oponent);
+        }
     }
-    println!("Total {}", total);
-    println!("Total2 {}", total2);
+    if P1 {
+        println!("Part 1 {}", total);
+    }
+
+    if P2 {
+        println!("Part 2 {}", total2);
+    }
     Some(())
 }
