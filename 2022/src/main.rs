@@ -8,6 +8,7 @@ use std::{
 use chrono::Datelike;
 
 mod days;
+pub mod parser;
 
 fn current_day() -> u16 {
     chrono::offset::Local::now().day() as u16
