@@ -16,6 +16,7 @@ name = "aoc_2022"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "derive",
 ]
 
 [[package]]
@@ -108,6 +109,15 @@ name = "cxxbridge-macro"
 version = "1.0.83"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1362b0ddcfc4eb0a1f57b68bd77dd99f0e826958a96abd0ae9bd092e114ffed6"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "derive"
+version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
