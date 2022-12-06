@@ -501,4 +501,21 @@ mod tests {
 
         assert_eq!(words, vec!["a", "b", "c", "d"]);
     }
+
+    #[derive(derive::Parse, Debug, PartialEq, Eq)]
+    enum TestDeep {
+        A(WS, u64),
+        B { count: isize },
+    }
+
+    #[test]
+    fn simple_test_enum_deep() {
+        let st = String::from("a  64").into_bytes();
+        let x: Option<TestDeep> = parse(st);
+        assert_eq!(x, Some(TestDeep::A(WS, 64)));
+
+        let st = String::from("B-32").into_bytes();
+        let x: Option<TestDeep> = parse(st);
+        assert_eq!(x, Some(TestDeep::B { count: -32 }));
+    }
 }

@@ -1,7 +1,7 @@
 extern crate proc_macro;
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, punctuated::Punctuated, DataEnum, DeriveInput};
+use syn::{parse_macro_input, DataEnum, DeriveInput};
 
 #[proc_macro_derive(Parse)]
 pub fn derive_answer_fn(tokens: TokenStream) -> TokenStream {
@@ -13,81 +13,66 @@ pub fn derive_answer_fn(tokens: TokenStream) -> TokenStream {
     }
 }
 
-fn derive_fields(fields: &Punctuated<syn::Field, syn::token::Comma>) -> proc_macro2::TokenStream {
-    let idents = fields.iter().map(|x| &x.ident);
-    let colors = fields.iter().map(|x| x.colon_token);
-    let tys = fields.iter().map(|x| &x.ty);
+fn derive_fields<'a, IT: 'a, I: Iterator<Item = &'a syn::Field>>(
+    fields: &'a IT,
+) -> proc_macro2::TokenStream
+where
+    &'a IT: IntoIterator<Item = &'a syn::Field, IntoIter = I>,
+{
+    let idents = fields.into_iter().map(|x| &x.ident);
+    let colors = fields.into_iter().map(|x| x.colon_token);
+    let tys = fields.into_iter().map(|x| &x.ty);
     quote!(
         #(#idents #colors <#tys as crate::parser::Parse>::parse(cur)?,)*
     )
 }
 
+fn impl_fields(fields: &syn::Fields) -> proc_macro2::TokenStream {
+    let fields_derive = derive_fields(fields);
+
+    match fields {
+        syn::Fields::Named(_) => quote!( { #fields_derive }),
+        syn::Fields::Unnamed(_) => quote!( ( #fields_derive )),
+        syn::Fields::Unit => quote!(),
+    }
+}
+
 fn derive(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let this = match input.data {
-        syn::Data::Struct(syn::DataStruct {
-            fields: syn::Fields::Named(fields),
-            ..
-        }) => {
-            let fields = derive_fields(&fields.named);
+        syn::Data::Struct(syn::DataStruct { fields, .. }) => {
+            let fields = impl_fields(&fields);
             quote! {
-                Some(Self {
+                Some(Self
                     #fields
-                })
+               )
             }
         }
-        syn::Data::Struct(syn::DataStruct {
-            fields: syn::Fields::Unnamed(fields),
-            ..
-        }) => {
-            let fields = derive_fields(&fields.unnamed);
-            quote! {
-                Some(Self (
-                    #fields
-                ))
-            }
-        }
-        syn::Data::Struct(syn::DataStruct {
-            fields: syn::Fields::Unit,
-            ..
-        }) => quote! {
-            Some(Self)
-        },
         syn::Data::Enum(DataEnum { variants, .. }) => {
-            let options =
-                variants
-                    .iter()
-                    .try_fold(proc_macro2::TokenStream::new(), |mut acc, var| {
-                        if var.fields.iter().next().is_some() {
-                            return Err(syn::parse::Error::new(
-                                var.ident.span(),
-                                "No fields allowed",
-                            ));
+            let options: proc_macro2::TokenStream = variants
+                .iter()
+                .map(|var| {
+                    let fields = impl_fields(&var.fields);
+                    let id = &var.ident;
+                    let ids = id.to_string();
+
+                    quote! {
+                        let id = #ids;
+                        let mut chars = id.bytes();
+
+                        let eq = |&c: &u8| {
+                            if let Some(x) = chars.next() {
+                                c.eq_ignore_case(x)
+                            } else {
+                                false
+                            }
+                        };
+                        let matched = cur.next_while_slice(eq);
+                        if matched.len() == id.len() {
+                            return Some(Self::#id #fields);
                         }
-
-                        let id = &var.ident;
-                        let ids = id.to_string();
-
-                        acc.extend(
-                            [quote! {
-                                let id = #ids;
-                                let mut chars = id.bytes();
-
-                                let eq = |&c: &u8| {
-                                    if let Some(x) = chars.next() {
-                                        c.eq_ignore_case(x)
-                                    } else {
-                                        false
-                                    }
-                                };
-                                let matched = cur.next_while_slice(eq);
-                                if matched.len() == id.len() {
-                                    return Some(Self::#id);
-                                }
-                            }]
-                            .into_iter(),
-                        );
-                        Ok(acc)
-                    })?;
+                    }
+                })
+                .collect();
 
             quote! {
                 use crate::parser::U8Helper as _;
