@@ -313,6 +313,15 @@ impl<'a, const C: u8> Parse<'a> for Char<C> {
     }
 }
 
+#[derive(Debug)]
+pub struct NotWS;
+impl CharTest for NotWS {
+    fn test(ch: &u8) -> bool {
+        !ch.is_ascii_whitespace()
+    }
+}
+
+#[derive(Debug)]
 pub struct AlphaTest;
 impl CharTest for AlphaTest {
     fn test(ch: &u8) -> bool {
@@ -320,6 +329,7 @@ impl CharTest for AlphaTest {
     }
 }
 
+#[derive(Debug)]
 pub struct AlphaNumTest;
 impl CharTest for AlphaNumTest {
     fn test(ch: &u8) -> bool {
@@ -329,7 +339,7 @@ impl CharTest for AlphaNumTest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Word<T: CharTest>(String, PhantomData<T>);
+pub struct Word<T: CharTest>(pub String, PhantomData<T>);
 
 impl<'a, T: CharTest> Parse<'a> for Word<T> {
     fn parse(buf: &mut Cursor) -> Option<Self> {
