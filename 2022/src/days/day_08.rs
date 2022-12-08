@@ -33,7 +33,7 @@ pub struct Part2 {
 
 impl Part2 {
     fn update(&mut self, index: usize, j: usize, el: u8, row: &mut [usize]) {
-        row[index] = j - self.vd[el as usize];
+        row[index] *= j - self.vd[el as usize];
         for i in 0..(el + 1) {
             self.vd[i as usize] = j;
         }
@@ -51,6 +51,7 @@ macro_rules! f {
         }
     };
 }
+
 pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
     let mut rows: Vec<Vec<u8>> = buf.split(b'\n').flatten().collect();
     rows.iter_mut()
@@ -65,20 +66,18 @@ pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
         }
     }
 
-    let count_row = create_vec(rows.len(), 0);
-    let counts = create_vec(cols.len(), count_row);
-    let mut counts = create_vec(4, counts);
-
     let inv = rows.len() - 1;
 
-    let mut part1_states = create_vec(4, create_vec(rows.len(), 0));
+    let mut s1 = create_vec(rows.len(), 0);
+    let mut s2 = create_vec(cols.len(), create_vec(rows.len(), 1));
+
     let mut part1 = Part1::default();
     let mut part2 = Part2::default();
 
     for (i, row) in rows.iter().enumerate() {
         for (j, &el) in row.iter().enumerate() {
-            f!(P1, part1.update(j, j, el, &mut part1_states[0][i]));
-            f!(P2, part2.update(j, j, el, &mut counts[0][i]));
+            f!(P1, part1.update(j, j, el, &mut s1[i]));
+            f!(P2, part2.update(j, j, el, &mut s2[i]));
         }
         f!(P1, part1.clear());
         f!(P2, part2.clear());
@@ -86,8 +85,8 @@ pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
 
     for (i, row) in rows.iter().enumerate() {
         for (j, &el) in row.iter().rev().enumerate() {
-            f!(P1, part1.update(inv - j, j, el, &mut part1_states[1][i]));
-            f!(P2, part2.update(inv - j, j, el, &mut counts[1][i]));
+            f!(P1, part1.update(inv - j, j, el, &mut s1[i]));
+            f!(P2, part2.update(inv - j, j, el, &mut s2[i]));
         }
         f!(P1, part1.clear());
         f!(P2, part2.clear());
@@ -95,8 +94,8 @@ pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
 
     for (i, row) in cols.iter().enumerate() {
         for (j, &el) in row.iter().enumerate() {
-            f!(P1, part1.update(i, j, el, &mut part1_states[2][j]));
-            f!(P2, part2.update(i, j, el, &mut counts[2][j]));
+            f!(P1, part1.update(i, j, el, &mut s1[j]));
+            f!(P2, part2.update(i, j, el, &mut s2[j]));
         }
         f!(P1, part1.clear());
         f!(P2, part2.clear());
@@ -104,8 +103,8 @@ pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
 
     for (i, row) in cols.iter().enumerate() {
         for (j, &el) in row.iter().rev().enumerate() {
-            f!(P1, part1.update(i, j, el, &mut part1_states[3][inv - j]));
-            f!(P2, part2.update(i, j, el, &mut counts[3][inv - j]));
+            f!(P1, part1.update(i, j, el, &mut s1[inv - j]));
+            f!(P2, part2.update(i, j, el, &mut s2[inv - j]));
         }
         f!(P1, part1.clear());
         f!(P2, part2.clear());
@@ -114,9 +113,7 @@ pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
     if P1 {
         let mut part1 = 0;
         for i in 0..cols.len() {
-            part1 +=
-                (part1_states[0][i] | part1_states[1][i] | part1_states[2][i] | part1_states[3][i])
-                    .count_ones();
+            part1 += s1[i].count_ones();
         }
         println!("Part 1: {}", part1);
     }
@@ -125,7 +122,7 @@ pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
         let mut max = 0;
         for i in 0..cols.len() {
             for j in 0..cols.len() {
-                let scenic = counts[0][i][j] * counts[1][i][j] * counts[2][i][j] * counts[3][i][j];
+                let scenic = s2[i][j];
                 if scenic > max {
                     max = scenic;
                 }
