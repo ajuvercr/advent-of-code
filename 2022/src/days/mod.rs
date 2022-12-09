@@ -6,6 +6,14 @@ macro_rules! c {
     };
 }
 
+macro_rules! f {
+    ($b:ident, $exp:expr) => {
+        if $b {
+            $exp;
+        }
+    };
+}
+
 mod day_01;
 mod day_02;
 mod day_03;

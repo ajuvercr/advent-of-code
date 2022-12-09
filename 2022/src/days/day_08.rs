@@ -44,14 +44,6 @@ impl Part2 {
     }
 }
 
-macro_rules! f {
-    ($b:ident, $exp:expr) => {
-        if $b {
-            $exp;
-        }
-    };
-}
-
 pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
     let mut rows: Vec<Vec<u8>> = buf.split(b'\n').flatten().collect();
     rows.iter_mut()
