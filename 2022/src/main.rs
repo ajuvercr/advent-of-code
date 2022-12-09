@@ -9,6 +9,7 @@ use chrono::Datelike;
 
 mod days;
 pub mod parser;
+pub use parser::*;
 
 fn current_day() -> u16 {
     chrono::offset::Local::now().day() as u16
