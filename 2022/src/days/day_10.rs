@@ -15,7 +15,7 @@ struct Prog<const P1: bool, const P2: bool> {
     reg: i32,
     cycle: i32,
     part1: i32,
-    part2: [u8; 240],
+    part2: String,
 }
 impl<const P1: bool, const P2: bool> Prog<P1, P2> {
     fn new() -> Self {
@@ -23,7 +23,7 @@ impl<const P1: bool, const P2: bool> Prog<P1, P2> {
             reg: 1,
             cycle: 0,
             part1: 0,
-            part2: [b'.'; 240],
+            part2: String::new(),
         }
     }
     fn handle(&mut self, com: Com) {
@@ -40,13 +40,20 @@ impl<const P1: bool, const P2: bool> Prog<P1, P2> {
     fn inc(&mut self) {
         if P2 {
             if (self.reg - self.cycle % 40).abs() < 2 {
-                self.part2[self.cycle as usize] = b'#';
+                self.part2 += "█";
+            } else {
+                self.part2 += " ";
             }
         }
         self.cycle += 1;
         if P1 {
             if (self.cycle + 20) % 40 == 0 {
                 self.part1 += self.reg * self.cycle;
+            }
+        }
+        if P2 {
+            if self.cycle % 40 == 0 {
+                self.part2 += "\n";
             }
         }
     }
@@ -66,10 +73,7 @@ pub fn solve<const P1: bool, const P2: bool>(mut buf: impl BufRead) -> Option<()
         println!("Part 1: {}", prog.part1);
     }
     if P2 {
-        println!("Part 2");
-        prog.part2
-            .chunks(40)
-            .for_each(|x| println!("{}", unsafe { std::str::from_utf8_unchecked(&x) }));
+        println!("Part 2: \n{}", prog.part2);
     }
     Some(())
 }
