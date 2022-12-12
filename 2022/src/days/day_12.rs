@@ -2,6 +2,7 @@ use std::{
     collections::{BinaryHeap, HashSet},
     io::BufRead,
 };
+
 type Point = (i32, i32);
 type Dir = (i32, i32);
 
@@ -9,10 +10,6 @@ const DIRS: &[Dir] = &[(1, 0), (0, 1), (-1, 0), (0, -1)];
 
 fn add(p: Point, dir: &Dir) -> Point {
     (p.0 + dir.0, p.1 + dir.1)
-}
-
-fn dist_f(p: Point, e: Point) -> usize {
-    (p.0 - e.0).abs() as usize + (p.1 - e.1).abs() as usize
 }
 
 fn in_bounds(p: Point, size: (i32, i32)) -> bool {
@@ -27,7 +24,7 @@ fn walkable(from: u8, to: u8) -> bool {
     }
 }
 
-#[derive(Ord, PartialEq, Eq, PartialOrd)]
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
 struct Opt {
     dist: i32,
     len: usize,
@@ -40,12 +37,12 @@ fn astar(
         len,
         dist: _dist,
     }: Opt,
-    end: Point,
+    is_end: impl Fn(Point) -> bool,
     grid: &[Vec<u8>],
     size: (i32, i32),
     mut add_f: impl FnMut(Opt),
 ) -> Option<usize> {
-    if target == end {
+    if is_end(target) {
         return Some(len);
     }
 
@@ -53,8 +50,8 @@ fn astar(
         let next = add(target, dir);
         if in_bounds(next, size)
             && walkable(
-                grid[target.0 as usize][target.1 as usize],
                 grid[next.0 as usize][next.1 as usize],
+                grid[target.0 as usize][target.1 as usize],
             )
         {
             let opt = Opt {
@@ -69,7 +66,12 @@ fn astar(
     None
 }
 
-fn astar_driver(start: Point, end: Point, grid: &[Vec<u8>], size: (i32, i32)) -> Option<usize> {
+fn astar_driver(
+    start: Point,
+    is_end: impl Fn(Point) -> bool,
+    grid: &[Vec<u8>],
+    size: (i32, i32),
+) -> Option<usize> {
     let mut queue: BinaryHeap<Opt> = BinaryHeap::new();
     let mut done = HashSet::new();
 
@@ -94,7 +96,7 @@ fn astar_driver(start: Point, end: Point, grid: &[Vec<u8>], size: (i32, i32)) ->
             }
         };
 
-        if let Some(x) = astar(current, end, grid, size, f) {
+        if let Some(x) = astar(current, &is_end, grid, size, f) {
             return Some(x);
         }
     }
@@ -118,30 +120,25 @@ pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
             }
         }
     }
-    let (start, end) = (start?, end?);
 
+    let (start, end) = (start?, end?);
     let size = (grid.len() as i32, grid[0].len() as i32);
 
     if P1 {
-        let p1 = astar_driver(start, end, &grid, size);
+        let p1 = astar_driver(end, |x| x == start, &grid, size);
         println!("Part 1: {}", p1.unwrap());
     }
 
     if P2 {
-        let mut min = usize::MAX;
-        for (i, row) in grid.iter().enumerate() {
-            for (j, col) in row.iter().enumerate() {
-                if *col == b'a' {
-                    let p1 =
-                        astar_driver((i as i32, j as i32), end, &grid, size).unwrap_or(usize::MAX);
-                    if p1 < min {
-                        min = p1;
-                    }
-                }
-            }
-        }
+        let p1 = astar_driver(
+            end,
+            |x| grid[x.0 as usize][x.1 as usize] == b'a',
+            &grid,
+            size,
+        )
+        .unwrap();
 
-        println!("Part 2: {}", min);
+        println!("Part 2: {}", p1);
     }
     Some(())
 }
