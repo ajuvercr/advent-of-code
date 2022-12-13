@@ -1,5 +1,5 @@
 use std::{
-    collections::{BinaryHeap, HashSet},
+    collections::{HashSet, VecDeque},
     io::BufRead,
 };
 
@@ -24,82 +24,38 @@ fn walkable(from: u8, to: u8) -> bool {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
-struct Opt {
-    dist: i32,
-    len: usize,
-    target: Point,
-}
-
-fn astar(
-    Opt {
-        target,
-        len,
-        dist: _dist,
-    }: Opt,
-    is_end: impl Fn(Point) -> bool,
-    grid: &[Vec<u8>],
-    size: (i32, i32),
-    mut add_f: impl FnMut(Opt),
-) -> Option<usize> {
-    if is_end(target) {
-        return Some(len);
-    }
-
-    for dir in DIRS {
-        let next = add(target, dir);
-        if in_bounds(next, size)
-            && walkable(
-                grid[next.0 as usize][next.1 as usize],
-                grid[target.0 as usize][target.1 as usize],
-            )
-        {
-            let opt = Opt {
-                target: next,
-                len: len + 1,
-                dist: -((len + 1) as i32),
-            };
-            add_f(opt);
-        }
-    }
-
-    None
-}
-
-fn astar_driver(
+fn bfs(
     start: Point,
     is_end: impl Fn(Point) -> bool,
     grid: &[Vec<u8>],
     size: (i32, i32),
 ) -> Option<usize> {
-    let mut queue: BinaryHeap<Opt> = BinaryHeap::new();
-    let mut done = HashSet::new();
+    let mut done = HashSet::<Point>::new();
+    let mut queue = VecDeque::new();
+    queue.push_back((start, 0));
 
-    let start = Opt {
-        target: start,
-        len: 0,
-        dist: 0,
-    };
-
-    queue.push(start);
-
-    loop {
-        let current = queue.pop()?;
-        if !done.insert(current.target) {
+    while let Some((target, len)) = queue.pop_front() {
+        if is_end(target) {
+            return Some(len);
+        }
+        if !done.insert(target) {
             continue;
-        };
+        }
 
-        // Please optimize this away
-        let f = |opt: Opt| {
-            if !done.contains(&opt.target) {
-                queue.push(opt);
+        for dir in DIRS {
+            let next = add(target, dir);
+            if in_bounds(next, size)
+                && walkable(
+                    grid[next.0 as usize][next.1 as usize],
+                    grid[target.0 as usize][target.1 as usize],
+                )
+            {
+                queue.push_back((next, len + 1));
             }
-        };
-
-        if let Some(x) = astar(current, &is_end, grid, size, f) {
-            return Some(x);
         }
     }
+
+    None
 }
 
 pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
@@ -125,12 +81,12 @@ pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
     let size = (grid.len() as i32, grid[0].len() as i32);
 
     if P1 {
-        let p1 = astar_driver(end, |x| x == start, &grid, size);
+        let p1 = bfs(end, |x| x == start, &grid, size);
         println!("Part 1: {}", p1.unwrap());
     }
 
     if P2 {
-        let p1 = astar_driver(
+        let p1 = bfs(
             end,
             |x| grid[x.0 as usize][x.1 as usize] == b'a',
             &grid,
