@@ -108,7 +108,8 @@ impl<'a> Line<'a> {
 pub fn solve<const P1: bool, const P2: bool>(mut buf: impl BufRead) -> Option<()> {
     let mut bytes = Vec::new();
     buf.read_to_end(&mut bytes).ok()?;
-    let parsed: Vec<Sensor> = parse(bytes)?;
+    let mut parsed: Vec<Sensor> = parse(bytes)?;
+    parsed.sort_by_key(|x| x.pos);
 
     let target_y = 2000000;
 

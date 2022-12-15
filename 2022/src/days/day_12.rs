@@ -17,40 +17,36 @@ fn in_bounds(p: Point, size: (i32, i32)) -> bool {
 }
 
 fn walkable(from: u8, to: u8) -> bool {
-    if from >= to {
-        true
-    } else {
-        to - from == 1
-    }
+    from >= to || (to - from == 1)
 }
 
 fn bfs(
     start: Point,
-    is_end: impl Fn(Point) -> bool,
+    start_char: u8,
+    is_end: impl Fn(u8, Point) -> bool,
     grid: &[Vec<u8>],
     size: (i32, i32),
 ) -> Option<usize> {
     let mut done = HashSet::<Point>::new();
     let mut queue = VecDeque::new();
-    queue.push_back((start, 0));
+    queue.push_back((start, start_char, 0));
 
-    while let Some((target, len)) = queue.pop_front() {
-        if is_end(target) {
+    while let Some((target, t_ch, len)) = queue.pop_front() {
+        if is_end(t_ch, target) {
             return Some(len);
         }
+
         if !done.insert(target) {
             continue;
         }
 
         for dir in DIRS {
             let next = add(target, dir);
-            if in_bounds(next, size)
-                && walkable(
-                    grid[next.0 as usize][next.1 as usize],
-                    grid[target.0 as usize][target.1 as usize],
-                )
-            {
-                queue.push_back((next, len + 1));
+            if in_bounds(next, size) {
+                let n_ch = grid[next.0 as usize][next.1 as usize];
+                if walkable(n_ch, t_ch) {
+                    queue.push_back((next, n_ch, len + 1));
+                }
             }
         }
     }
@@ -67,7 +63,7 @@ pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
         for (j, col) in row.iter_mut().enumerate() {
             if *col == b'S' {
                 start = Some((i as i32, j as i32));
-                *col = b'a';
+                // *col = b'a';
             }
 
             if *col == b'E' {
@@ -81,19 +77,12 @@ pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
     let size = (grid.len() as i32, grid[0].len() as i32);
 
     if P1 {
-        let p1 = bfs(end, |x| x == start, &grid, size);
+        let p1 = bfs(end, b'z', |_, x| x == start, &grid, size);
         println!("Part 1: {}", p1.unwrap());
     }
 
     if P2 {
-        let p1 = bfs(
-            end,
-            |x| grid[x.0 as usize][x.1 as usize] == b'a',
-            &grid,
-            size,
-        )
-        .unwrap();
-
+        let p1 = bfs(end, b'z', |x, _| x == b'a', &grid, size).unwrap();
         println!("Part 2: {}", p1);
     }
     Some(())
