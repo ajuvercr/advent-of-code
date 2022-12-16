@@ -62,13 +62,13 @@ impl<'a, T: std::fmt::Debug> Cr<'a, T> {
         self.pos = pos;
     }
 
-    pub fn next_n(&mut self, length: usize) -> &[T] {
+    pub fn next_n(&mut self, length: usize) -> &'a [T] {
         let o = &self.buf[self.pos..self.pos + length];
         self.pos += length;
         o
     }
 
-    pub fn next(&mut self) -> &T {
+    pub fn next(&mut self) -> &'a T {
         let o = &self.buf[self.pos];
         self.pos += 1;
         o
