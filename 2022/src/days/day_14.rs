@@ -136,7 +136,7 @@ fn solve_count(field: &mut Field, start: Point) -> usize {
 pub fn solve<const P1: bool, const P2: bool>(mut buf: impl BufRead) -> Option<()> {
     let mut bytes = Vec::new();
     buf.read_to_end(&mut bytes).ok()?;
-    let parsed: Vec<Line> = parse(bytes)?;
+    let parsed: Vec<Line> = parse(&bytes)?;
     let mut parsed2: Vec<Line> = parsed.clone();
 
     if P1 {

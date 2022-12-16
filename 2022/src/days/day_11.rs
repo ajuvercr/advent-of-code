@@ -166,7 +166,7 @@ impl Display for Monkey {
 pub fn solve<const P1: bool, const P2: bool>(mut buf: impl BufRead) -> Option<()> {
     let mut bytes = Vec::new();
     buf.read_to_end(&mut bytes).ok()?;
-    let monkeys: Vec<(Monkey, WS)> = parse(bytes)?;
+    let monkeys: Vec<(Monkey, WS)> = parse(&bytes)?;
     let mut monkeys: Vec<Monkey> = monkeys.into_iter().map(|(x, _)| x).collect();
     let mut m2: Vec<Monkey> = monkeys.clone();
 

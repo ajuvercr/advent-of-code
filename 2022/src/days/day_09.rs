@@ -74,7 +74,7 @@ type Line = (Dir, Char<b' '>, usize, Char<b'\n'>);
 pub fn solve<const P1: bool, const P2: bool>(mut buf: impl BufRead) -> Option<()> {
     let mut bytes = Vec::new();
     buf.read_to_end(&mut bytes).ok()?;
-    let parsed: Vec<Line> = parse(bytes)?;
+    let parsed: Vec<Line> = parse(&bytes)?;
 
     let mut part1 = Snake::<2>::new();
     let mut part2 = Snake::<10>::new();

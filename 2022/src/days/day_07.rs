@@ -95,7 +95,7 @@ pub fn solve<const P1: bool, const P2: bool>(mut buf: impl BufRead) -> Option<()
     let mut bytes = Vec::new();
     buf.read_to_end(&mut bytes).ok();
 
-    let parsed: Vec<Command> = parse(bytes)?;
+    let parsed: Vec<Command> = parse(&bytes)?;
 
     let mut fs = FsTracker::new();
     for command in parsed.into_iter().skip(1) {

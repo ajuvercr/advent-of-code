@@ -44,13 +44,13 @@ impl U8Helper for u8 {
     }
 }
 
-pub struct Cr<T> {
-    buf: Vec<T>,
+pub struct Cr<'a, T> {
+    buf: &'a [T],
     pos: usize,
 }
 
-impl<T: std::fmt::Debug> Cr<T> {
-    pub fn new(buf: Vec<T>) -> Self {
+impl<'a, T: std::fmt::Debug> Cr<'a, T> {
+    pub fn new(buf: &'a [T]) -> Self {
         Self { buf, pos: 0 }
     }
 
@@ -79,7 +79,7 @@ impl<T: std::fmt::Debug> Cr<T> {
     }
 }
 
-impl<T> Index<usize> for Cr<T> {
+impl<'a, T> Index<usize> for Cr<'a, T> {
     type Output = T;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -87,7 +87,7 @@ impl<T> Index<usize> for Cr<T> {
     }
 }
 
-impl<T: Copy> Cr<T> {
+impl<'a, T: Copy> Cr<'a, T> {
     pub fn next_while_slice<F: FnMut(&T) -> bool>(&mut self, mut f: F) -> &[T] {
         let len = self.buf[self.pos..].iter().take_while(|&x| f(x)).count();
         let o = &self.buf[self.pos..self.pos + len];
@@ -117,10 +117,10 @@ impl<T: Copy> Cr<T> {
     }
 }
 
-pub type Cursor = Cr<u8>;
+pub type Cursor<'a> = Cr<'a, u8>;
 
 pub trait Parse<'a>: Sized {
-    fn parse(buf: &mut Cursor) -> Option<Self>;
+    fn parse(buf: &mut Cursor<'a>) -> Option<Self>;
 }
 
 pub trait ParserTest {
@@ -132,7 +132,7 @@ pub trait CharTest {
     fn test(ch: &u8) -> bool;
 }
 
-pub fn parse<'a, T: Parse<'a>>(input: Vec<u8>) -> Option<T> {
+pub fn parse<'a, T: Parse<'a>>(input: &'a [u8]) -> Option<T> {
     let mut cursor = Cursor::new(input);
 
     let x = T::parse(&mut cursor)?;
@@ -169,7 +169,7 @@ impl ParserTest for Done {
 }
 
 impl<'a, T: Parse<'a>> Parse<'a> for Option<T> {
-    fn parse(buf: &mut Cursor) -> Option<Self> {
+    fn parse(buf: &mut Cursor<'a>) -> Option<Self> {
         let ret = buf.position();
         match T::parse(buf) {
             Some(x) => Some(Some(x)),
@@ -182,7 +182,7 @@ impl<'a, T: Parse<'a>> Parse<'a> for Option<T> {
 }
 
 impl<'a, T: Parse<'a>, R: Parse<'a>> Parse<'a> for Result<T, R> {
-    fn parse(buf: &mut Cursor) -> Option<Self> {
+    fn parse(buf: &mut Cursor<'a>) -> Option<Self> {
         let ret = buf.position();
         if let Some(x) = T::parse(buf) {
             return Some(Ok(x));
@@ -194,7 +194,7 @@ impl<'a, T: Parse<'a>, R: Parse<'a>> Parse<'a> for Result<T, R> {
 }
 
 impl<'a, T: Parse<'a>> Parse<'a> for Vec<T> {
-    fn parse(buf: &mut Cursor) -> Option<Self> {
+    fn parse(buf: &mut Cursor<'a>) -> Option<Self> {
         let mut out = Vec::new();
 
         if buf.is_empty() {
@@ -215,7 +215,7 @@ impl<'a, T: Parse<'a>> Parse<'a> for Vec<T> {
 macro_rules! imp {
     ($($opt:ident,)*) => {
         impl<'a, $($opt: Parse<'a>),*>  Parse<'a> for ($($opt), *) {
-            fn parse(buf: &mut Cursor) -> Option<Self> {
+            fn parse(buf: &mut Cursor<'a>) -> Option<Self> {
                 Some((
                     $($opt::parse(buf)?, )*
                 ))
@@ -233,7 +233,7 @@ imp!(A, B, C, D, E, F,);
 macro_rules! us {
     ($ty:ty) => {
         impl<'a> Parse<'a> for $ty {
-            fn parse(buf: &mut Cursor) -> Option<Self> {
+            fn parse(buf: &mut Cursor<'a>) -> Option<Self> {
                 let digits = buf.next_while_slice(u8::is_digit_ref);
                 if digits.len() == 0 {
                     return None;
@@ -257,7 +257,7 @@ us!(u8);
 macro_rules! is {
     ($ty:ty) => {
         impl<'a> Parse<'a> for $ty {
-            fn parse(buf: &mut Cursor) -> Option<Self> {
+            fn parse(buf: &mut Cursor<'a>) -> Option<Self> {
                 if buf.is_empty() {
                     return None;
                 }
@@ -289,7 +289,7 @@ is!(i16);
 is!(i8);
 
 impl<'a> Parse<'a> for char {
-    fn parse(buf: &mut Cursor) -> Option<Self> {
+    fn parse(buf: &mut Cursor<'a>) -> Option<Self> {
         if buf.is_empty() {
             return None;
         }
@@ -300,7 +300,7 @@ impl<'a> Parse<'a> for char {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Char<const C: u8>;
 impl<'a, const C: u8> Parse<'a> for Char<C> {
-    fn parse(buf: &mut Cursor) -> Option<Self> {
+    fn parse(buf: &mut Cursor<'a>) -> Option<Self> {
         if buf.is_empty() {
             return None;
         }
@@ -342,7 +342,7 @@ impl CharTest for AlphaNumTest {
 pub struct Word<T: CharTest>(pub String, PhantomData<T>);
 
 impl<'a, T: CharTest> Parse<'a> for Word<T> {
-    fn parse(buf: &mut Cursor) -> Option<Self> {
+    fn parse(buf: &mut Cursor<'a>) -> Option<Self> {
         let letters = buf.next_while_slice(T::test);
         if letters.len() == 0 {
             return None;
@@ -359,7 +359,7 @@ impl<'a, T: CharTest> Parse<'a> for Word<T> {
 pub struct WS;
 
 impl<'a> Parse<'a> for WS {
-    fn parse(buf: &mut Cursor) -> Option<Self> {
+    fn parse(buf: &mut Cursor<'a>) -> Option<Self> {
         buf.next_while_slice(u8::is_white_ref);
         Some(Self)
     }
@@ -382,7 +382,7 @@ where
     T: Parse<'a>,
     S: Parse<'a>,
 {
-    fn parse(buf: &mut Cursor) -> Option<Self> {
+    fn parse(buf: &mut Cursor<'a>) -> Option<Self> {
         let mut items = Vec::new();
         // first parse element
         if let Some(item) = <T>::parse(buf) {
@@ -419,21 +419,21 @@ mod tests {
     #[test]
     fn simple_test() {
         let st = String::from("1").into_bytes();
-        let item: Option<char> = parse(st);
+        let item: Option<char> = parse(&st);
         assert_eq!(item, Some('1'))
     }
 
     #[test]
     fn simple_test_num() {
         let st = String::from("123").into_bytes();
-        let item: Option<u64> = parse(st);
+        let item: Option<u64> = parse(&st);
         assert_eq!(item, Some(123))
     }
 
     #[test]
     fn simple_test_inum() {
         let st = String::from("-123").into_bytes();
-        let item: Option<i64> = parse(st.clone());
+        let item: Option<i64> = parse(&st);
         assert_eq!(item, Some(-123))
     }
 
@@ -441,7 +441,7 @@ mod tests {
     fn simple_test_option() {
         let st = String::from("-123").into_bytes();
 
-        let mut cursor = Cursor::new(st);
+        let mut cursor = Cursor::new(&st);
 
         let failed: Option<u64> = u64::parse(&mut cursor);
         let item: Option<i64> = i64::parse(&mut cursor);
@@ -454,14 +454,14 @@ mod tests {
     fn simple_test_tuple() {
         let st = String::from("42-123").into_bytes();
 
-        let x: Option<(u32, i32)> = parse(st);
+        let x: Option<(u32, i32)> = parse(&st);
         assert_eq!(x, Some((42, -123)));
     }
 
     #[test]
     fn simple_test_result() {
         let st = String::from("1-123").into_bytes();
-        let x: Option<Result<(usize, Done), (usize, isize)>> = parse(st);
+        let x: Option<Result<(usize, Done), (usize, isize)>> = parse(&st);
         assert_eq!(x, Some(Err((1, -123))));
     }
 
@@ -474,7 +474,7 @@ mod tests {
     #[test]
     fn simple_test_derive() {
         let st = String::from("123c").into_bytes();
-        let x: Option<Point> = parse(st);
+        let x: Option<Point> = parse(&st);
         assert_eq!(x, Some(Point { x: 123, y: Char }));
     }
 
@@ -487,18 +487,18 @@ mod tests {
     #[test]
     fn simple_test_enum() {
         let st = String::from("a").into_bytes();
-        let x: Option<Test> = parse(st);
+        let x: Option<Test> = parse(&st);
         assert_eq!(x, Some(Test::A));
 
         let st = String::from("P").into_bytes();
-        let x: Option<Test> = parse(st);
+        let x: Option<Test> = parse(&st);
         assert_eq!(x, Some(Test::P));
     }
 
     #[test]
     fn simmple_test_punctuated() {
         let st = String::from("a,b,c,d").into_bytes();
-        let x: Option<Puncuated<Word<AlphaTest>, Char<b','>>> = parse(st);
+        let x: Option<Puncuated<Word<AlphaTest>, Char<b','>>> = parse(&st);
         assert!(x.is_some());
 
         let words: Vec<_> = x
@@ -521,11 +521,11 @@ mod tests {
     #[test]
     fn simple_test_enum_deep() {
         let st = String::from("a  64").into_bytes();
-        let x: Option<TestDeep> = parse(st);
+        let x: Option<TestDeep> = parse(&st);
         assert_eq!(x, Some(TestDeep::A(WS, 64)));
 
         let st = String::from("B-32").into_bytes();
-        let x: Option<TestDeep> = parse(st);
+        let x: Option<TestDeep> = parse(&st);
         assert_eq!(x, Some(TestDeep::B { count: -32 }));
     }
 }

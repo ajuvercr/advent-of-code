@@ -75,7 +75,7 @@ impl Test {
 pub fn solve<const P1: bool, const P2: bool>(mut buf: impl BufRead) -> Option<()> {
     let mut bytes = Vec::new();
     buf.read_to_end(&mut bytes).ok()?;
-    let parsed: Vec<Test> = parse(bytes)?;
+    let parsed: Vec<Test> = parse(&bytes)?;
     if P1 {
         let count: usize = parsed
             .iter()

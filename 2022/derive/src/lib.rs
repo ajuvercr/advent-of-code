@@ -99,7 +99,7 @@ fn derive(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
 
     Ok(quote!(
     impl<'a> #gen crate::parser::Parse<'a> for #ident #gen where #gen_constraints {
-        fn parse(cur: &mut crate::parser::Cursor) -> Option<Self> {
+        fn parse(cur: &mut crate::parser::Cursor<'a>) -> Option<Self> {
             use crate::parser::Parse as _;
             #this
         }
