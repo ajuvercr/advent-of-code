@@ -101,12 +101,6 @@ fn calculate_next_send(path: &mut Vec<Point>, field: &Field) -> Option<Point> {
     }
 }
 
-fn print_field(field: &Vec<Vec<u8>>) {
-    for line in field {
-        println!("{}", unsafe { std::str::from_utf8_unchecked(line) });
-    }
-}
-
 fn solve_input(mut parsed: Vec<Line>) -> usize {
     let ((max_x, max_y), start) = align(&mut parsed);
 
