@@ -1,5 +1,6 @@
 #![feature(drain_filter)]
 #![feature(exact_size_is_empty)]
+#![feature(linked_list_cursors)]
 use std::{
     borrow::Cow,
     env,
