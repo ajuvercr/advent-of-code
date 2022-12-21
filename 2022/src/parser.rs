@@ -88,7 +88,7 @@ impl<'a, T> Index<usize> for Cr<'a, T> {
 }
 
 impl<'a, T: Copy> Cr<'a, T> {
-    pub fn next_while_slice<F: FnMut(&T) -> bool>(&mut self, mut f: F) -> &[T] {
+    pub fn next_while_slice<F: FnMut(&T) -> bool>(&mut self, mut f: F) -> &'a [T] {
         let len = self.buf[self.pos..].iter().take_while(|&x| f(x)).count();
         let o = &self.buf[self.pos..self.pos + len];
         self.pos += len;
@@ -340,6 +340,22 @@ impl CharTest for AlphaNumTest {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Word<T: CharTest>(pub String, PhantomData<T>);
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Str<'a, T: CharTest>(pub &'a str, PhantomData<T>);
+
+impl<'a, T: CharTest> Parse<'a> for Str<'a, T> {
+    fn parse(buf: &mut Cursor<'a>) -> Option<Self> {
+        let letters = buf.next_while_slice(T::test);
+        if letters.len() == 0 {
+            return None;
+        }
+        Some(Self(
+            unsafe { std::str::from_utf8_unchecked(letters) },
+            PhantomData,
+        ))
+    }
+}
 
 impl<'a, T: CharTest> Parse<'a> for Word<T> {
     fn parse(buf: &mut Cursor<'a>) -> Option<Self> {
