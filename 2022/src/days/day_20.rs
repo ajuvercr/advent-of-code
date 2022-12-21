@@ -2,60 +2,65 @@ use std::io::BufRead;
 
 use crate::{parse, Char};
 
-const C: &'static [&'static [i64]] = &[
-    &[1, 2, -3, 3, -2, 0, 4],
-    &[2, 1, -3, 3, -2, 0, 4],
-    &[1, -3, 2, 3, -2, 0, 4],
-    &[1, 2, 3, -2, -3, 0, 4],
-    &[1, 2, -2, -3, 0, 3, 4],
-    &[1, 2, -3, 0, 3, 4, -2],
-    &[1, 2, -3, 0, 3, 4, -2],
-    &[1, 2, -3, 4, 0, 3, -2],
-];
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+struct Num {
+    value: i128,
+    jump: usize,
+    order: usize,
+}
+
+impl Num {
+    fn forward(v: i128, order: usize, count: i128) -> Self {
+        let count = count - 1;
+        let jump = if v < 0 {
+            (((v - 1) % count) + count + 1) % count
+        } else {
+            v % count
+        };
+
+        Self {
+            jump: jump as usize,
+            order,
+            value: v,
+        }
+    }
+}
 
 pub fn solve<const P1: bool, const P2: bool>(mut buf: impl BufRead) -> Option<()> {
     let mut bytes = Vec::new();
     buf.read_to_end(&mut bytes).ok()?;
-    let parsed: Vec<(i64, Char<b'\n'>)> = parse(&bytes)?;
+    let parsed: Vec<(i128, Char<b'\n'>)> = parse(&bytes)?;
+    let m = if P2 { 811589153 } else { 1 };
+    let l = parsed.len() as i128;
     let mut parsed: Vec<_> = parsed
         .into_iter()
         .enumerate()
-        .map(|(i, (x, _))| (x, i as i64))
+        .map(|(i, (x, _))| Num::forward(x * m, i, l))
         .collect();
 
-    let index_arr: Vec<usize> = (0..parsed.len()).collect();
-
-    let to_handle = parsed.len() as i64;
+    let to_handle = parsed.len();
     let mut handled = 0;
-    println!("parsed {:?}", parsed);
 
     let mut i = 0;
-    let mut k = 1;
+    let mut k = if P2 { 10 } else { 1 };
     while k > 0 {
         // Loop get index
-        while parsed[i].1 != handled {
+        while parsed[i].order != handled {
             i += 1;
             if i == parsed.len() {
                 i = 0;
             }
         }
 
-        handled += 1;
-
-        let (v, z) = parsed[i];
-        let mut x = ((i as i64 + v) % to_handle + to_handle) % to_handle;
-        if v.signum() == x.signum() {
-            x += x.signum();
-        }
-        parsed.insert(x as usize, (v, z));
-
-        if x <= i as i64 {
-            let v2 = parsed.remove(i + 1).0;
-            debug_assert_eq!(v, v2);
+        let v = parsed.remove(i);
+        let x = (i + v.jump) % to_handle;
+        if x < i {
+            parsed.insert(x + 1, v);
         } else {
-            let v2 = parsed.remove(i).0;
-            debug_assert_eq!(v, v2);
+            parsed.insert(x, v);
         }
+
+        handled += 1;
 
         if handled == to_handle {
             handled = 0;
@@ -63,18 +68,16 @@ pub fn solve<const P1: bool, const P2: bool>(mut buf: impl BufRead) -> Option<()
         }
     }
 
-    let zero_ids = parsed.iter().take_while(|x| x.0 != 0).count();
-    println!("zero id {}", zero_ids);
-    let x = parsed[(zero_ids + 1000) % parsed.len()].0;
-    let y = parsed[(zero_ids + 2000) % parsed.len()].0;
-    let z = parsed[(zero_ids + 3000) % parsed.len()].0;
+    let zero_ids = parsed.iter().take_while(|x| x.value != 0).count();
+    let x = parsed[(zero_ids + 1000) % parsed.len()].value;
+    let y = parsed[(zero_ids + 2000) % parsed.len()].value;
+    let z = parsed[(zero_ids + 3000) % parsed.len()].value;
 
     if P1 {
-        // Too high 9756
-        println!("Part 1: {} {} {} = {} (expectec 8372)", x, y, z, x + y + z);
+        println!("Part 1: {}", x + y + z);
     }
     if P2 {
-        println!("Part 2");
+        println!("Part 2: {}", x + y + z);
     }
     Some(())
 }

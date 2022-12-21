@@ -282,6 +282,7 @@ macro_rules! is {
     };
 }
 
+is!(i128);
 is!(i64);
 is!(i32);
 is!(isize);
