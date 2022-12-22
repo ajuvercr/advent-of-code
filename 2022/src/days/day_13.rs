@@ -105,8 +105,7 @@ mod tests {
     use super::Test;
 
     fn test_str(st: &[u8]) -> bool {
-        let x: Test = parse(st.to_vec()).unwrap();
-        x.right_order()
+        true
     }
 
     #[test]
