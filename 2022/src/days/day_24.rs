@@ -1,8 +1,21 @@
 use std::{
     collections::{BinaryHeap, HashSet},
+    hash::Hash,
     io::BufRead,
     ops::Index,
 };
+
+struct PushD<T> {
+    buf: Vec<(Option<usize>, T)>,
+}
+
+impl<T> PushD<T> {
+    fn push(&mut self, parent: usize, t: T) -> usize {
+        let o = self.buf.len();
+        self.buf.push((Some(parent), t));
+        o
+    }
+}
 
 #[derive(Clone)]
 struct Deque<'a, T> {
@@ -33,7 +46,7 @@ impl<'a, T> Deque<'a, T> {
 
     fn rotate_left(&mut self) {
         self.at += 1;
-        if self.at > self.len {
+        if self.at >= self.len {
             self.at = 0;
         }
     }
@@ -142,46 +155,132 @@ fn cost(loc: Point, target: Point) -> isize {
     -1 * c as isize
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy)]
 struct Move {
     cost: isize,
     loc: Point,
     time: usize,
+
+    idx: usize,
+}
+impl PartialEq for Move {
+    fn eq(&self, other: &Self) -> bool {
+        other.cost == self.cost && other.loc == self.loc && other.time == self.time
+    }
+}
+impl Eq for Move {}
+impl PartialOrd for Move {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cost.cmp(&other.cost))
+    }
+}
+impl Ord for Move {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.cost.cmp(&other.cost)
+    }
+}
+impl Hash for Move {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_isize(self.cost);
+        state.write_usize(self.loc.0);
+        state.write_usize(self.loc.1);
+        state.write_usize(self.time);
+    }
 }
 
 impl Move {
-    fn options(&self, end: Point, size: Point) -> Vec<Self> {
+    fn options(&self, end: Point, size: Point, push_d: &mut PushD<Point>) -> Vec<Self> {
         let mut out = Vec::new();
         let time = self.time + 1;
         if self.loc.0 < size.0 - 1 {
             let loc = (self.loc.0 + 1, self.loc.1);
             let cost = cost(loc, end) - time as isize;
-            out.push(Self { loc, time, cost })
+            let idx = push_d.push(self.idx, loc);
+            out.push(Self {
+                loc,
+                time,
+                cost,
+                idx,
+            })
         }
         if self.loc.1 < size.1 - 1 {
             let loc = (self.loc.0, self.loc.1 + 1);
             let cost = cost(loc, end) - time as isize;
-            out.push(Self { loc, time, cost })
+            let idx = push_d.push(self.idx, loc);
+            out.push(Self {
+                loc,
+                time,
+                cost,
+                idx,
+            })
         }
         if self.loc.0 > 0 {
             let loc = (self.loc.0 - 1, self.loc.1);
             let cost = cost(loc, end) - time as isize;
-            out.push(Self { loc, time, cost })
+            let idx = push_d.push(self.idx, loc);
+            out.push(Self {
+                loc,
+                time,
+                cost,
+                idx,
+            })
         }
         if self.loc.1 > 0 {
             let loc = (self.loc.0, self.loc.1 - 1);
             let cost = cost(loc, end) - time as isize;
-            out.push(Self { loc, time, cost })
+            let idx = push_d.push(self.idx, loc);
+            out.push(Self {
+                loc,
+                time,
+                cost,
+                idx,
+            })
         }
 
         let cost = cost(self.loc, end) - time as isize;
+        let idx = push_d.push(self.idx, self.loc);
         out.push(Self {
             loc: self.loc,
             time,
             cost,
+            idx,
         });
 
         out
+    }
+}
+
+fn run<'a>(cached: &mut Cache<'a>, time: usize, start: Point, end: Point, size: Point) -> Move {
+    let mut queue = BinaryHeap::new();
+    let mut done = HashSet::new();
+    let mut push_d = PushD {
+        buf: vec![(None, start)],
+    };
+
+    queue.push(Move {
+        loc: start,
+        time,
+        cost: cost(start, end),
+        idx: 0,
+    });
+
+    loop {
+        let next = queue.pop().unwrap();
+        // println!("current: {:?}", next);
+        if done.insert(next) {
+            // if next.time > 4 {
+            //     break next.time;
+            // }
+            if next.loc == end {
+                break next;
+            }
+            for m in next.options(end, size, &mut push_d) {
+                if cached.movable(m, start, end, size) {
+                    // println!("moving {:?}", m);
+                    queue.push(m);
+                }
+            }
+        }
     }
 }
 
@@ -213,50 +312,72 @@ pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
         down: n_l(&down),
     };
 
-    let mut cached = Cache::new(bliz);
-    let mut queue = BinaryHeap::new();
-    let mut done = HashSet::new();
-
     let start = (1, 0);
     let size = (field[0].len(), field.len());
     let end = (size.0 - 2, size.1 - 1);
-    println!(
-        "moving  from {:?} to {:?} (size {:?} cost {})",
-        start,
-        end,
-        size,
-        cost(end, start)
-    );
-    queue.push(Move {
-        loc: start,
-        time: 0,
-        cost: cost(start, end),
-    });
 
-    let time = loop {
-        let next = queue.pop().unwrap();
-        // println!("current: {:?}", next);
-        if done.insert(next) {
-            // if next.time > 4 {
-            //     break next.time;
-            // }
-            if next.loc == end {
-                break next.time;
-            }
-            for m in next.options(end, size) {
-                if cached.movable(m, start, end, size) {
-                    // println!("moving {:?}", m);
-                    queue.push(m);
-                }
-            }
-        }
-    };
+    let mut cached = Cache::new(bliz);
+    let next = run(&mut cached, 0, start, end, size);
+
+    // let mut locations = Vec::new();
+    // let mut c = Some(next.idx);
+    // while let Some(i) = c {
+    //     locations.push(push_d.buf[i].1);
+    //     c = push_d.buf[i].0;
+    // }
+    // locations.reverse();
+    //
+    // for (i, l) in locations.iter().enumerate() {
+    //     let bliz = cached.get(i);
+    //     println!("-------------------------- {}: l {:?}", i, l);
+    //
+    //     for y in 0..size.1 - 2 {
+    //         for x in 0..size.0 - 2 {
+    //             let c: usize = [
+    //                 bliz.up[x][y] as usize,
+    //                 bliz.down[x][y] as usize,
+    //                 bliz.left[y][x] as usize,
+    //                 bliz.right[y][x] as usize,
+    //             ]
+    //             .into_iter()
+    //             .sum();
+    //
+    //             let ch = if c < 2 {
+    //                 if bliz.up[x][y] {
+    //                     '^'
+    //                 } else if bliz.down[x][y] {
+    //                     'v'
+    //                 } else if bliz.right[y][x] {
+    //                     '>'
+    //                 } else if bliz.left[y][x] {
+    //                     '<'
+    //                 } else {
+    //                     '.'
+    //                 }
+    //             } else {
+    //                 (b'0' + c as u8) as char
+    //             };
+    //
+    //             if *l == (x + 1, y + 1) {
+    //                 print!("\x1b[93m");
+    //                 print!("{}", ch);
+    //                 print!("\x1b[0m");
+    //             } else {
+    //                 print!("{}", ch);
+    //             }
+    //         }
+    //
+    //         print!("\n");
+    //     }
+    // }
 
     if P1 {
-        println!("Part 1: {}", time);
+        println!("Part 1: {}", next.time);
     }
     if P2 {
-        println!("Part 2");
+        let next = run(&mut cached, next.time, end, start, size);
+        let next = run(&mut cached, next.time, start, end, size);
+        println!("Part 2: {}", next.time);
     }
     Some(())
 }
