@@ -1,8 +1,52 @@
-use std::{collections::HashSet, io::BufRead};
+use std::{
+    collections::{HashMap, HashSet},
+    io::BufRead,
+};
 
 use crate::parse;
 
 type T = isize;
+fn det<const A: usize>(a: [[T; A]; A]) -> T {
+    if A == 1 {
+        return a[0][0];
+    }
+    if A == 2 {
+        return a[0][0] * a[1][1] - a[0][1] * a[1][0];
+    }
+    let (a, b, c, d, e, f, g, h, i) = (
+        a[0][0], a[0][1], a[0][2], a[1][0], a[1][1], a[1][2], a[2][0], a[2][1], a[2][2],
+    );
+    a * e * i + b * f * g + c * d * h - c * e * g - b * d * i - a * f * h
+}
+
+// [ a b c ]
+// [ d e f ]
+// [ g h i ]
+fn inv(a: [[T; 3]; 3]) -> [[T; 3]; 3] {
+    let de = det(a);
+    let (a, b, c, d, e, f, g, h, i) = (
+        a[0][0], a[0][1], a[0][2], a[1][0], a[1][1], a[1][2], a[2][0], a[2][1], a[2][2],
+    );
+
+    [
+        [
+            det([[e, f], [h, i]]) / de,
+            det([[d, f], [g, i]]) / de,
+            det([[d, e], [g, h]]) / de,
+        ],
+        [
+            det([[b, c], [h, i]]) / de,
+            det([[a, c], [g, i]]) / de,
+            det([[a, b], [g, h]]) / de,
+        ],
+        [
+            det([[b, c], [e, f]]) / de,
+            det([[a, c], [d, f]]) / de,
+            det([[a, b], [d, e]]) / de,
+        ],
+    ]
+}
+
 fn mul<const A: usize, const B: usize, const C: usize>(
     a: [[T; A]; B],
     b: [[T; B]; C],
@@ -39,7 +83,6 @@ mod tests {
         let p = [[5], [0]];
         let p2 = mul(p, rot);
 
-        println!("p2 {:?}", p2);
         assert_eq!(p2, [[0], [5]]);
     }
 
@@ -49,7 +92,6 @@ mod tests {
         let p = [[1, 0], [0, 1]];
         let p2 = mul(p, rot);
 
-        println!("p2 {:?}", p2);
         assert_eq!(p2, [[0, 1], [1, 0]]);
     }
 
@@ -160,10 +202,24 @@ impl Dir {
                 [-1,0, 0],
                 [0, 0, 1]];
         match self {
+            Dir::W => l,
+            Dir::E => mul(l, mul(l, l)),
+            Dir::S => mul(d, mul(d, d)),
+            Dir::N => d
+        }
+    }
+
+    #[rustfmt::skip]
+    fn rot2(&self) -> Rot {
+        let l: Rot = [
+                [1, 0, 0],
+                [0, 0, -1],
+                [0, 1, 0]
+        ];
+        match self {
             Dir::E => l,
             Dir::W => mul(l, mul(l, l)),
-            Dir::N => mul(d, mul(d, d)),
-            Dir::S => d
+            _ => panic!(),
         }
     }
 }
@@ -196,43 +252,57 @@ fn find_next(pos: Coord, dir: Dir, board: &Board) -> Option<Coord> {
 type Rot = [[isize; 3]; 3];
 type P3 = (isize, isize, isize);
 #[derive(Clone, Debug)]
-struct Cube {
+struct Cube<const L: usize> {
     collisions: HashSet<P3>,
+    all: HashMap<P3, (usize, usize)>,
+    sides: Vec<(P3, Rot, (usize, usize))>,
 }
 
 type Frame = Vec<Vec<u8>>;
 
-fn expand_coll<const L: usize>(coll: &mut HashSet<P3>, frame: &Frame, rot: Rot) -> Option<()> {
+fn expand_coll<const L: usize>(
+    coll: &mut HashSet<P3>,
+    all: &mut HashMap<P3, (usize, usize)>,
+    frame: &Frame,
+    frame_l: (usize, usize),
+    rot: Rot,
+) -> Option<()> {
     let h = L as isize / 2;
 
-    for x in 0..L {
-        for y in 0..L {
+    for ox in 0..L {
+        for oy in 0..L {
+            let is_thing = frame[oy][ox] == b'#';
             // Insert things
-            if frame[y][x] == b'#' {
-                let mut x = x as isize - h;
-                let mut y = y as isize - h;
-                if x >= 0 {
-                    x += 1;
-                }
-                if y >= 0 {
-                    y += 1;
-                }
-                let t = [[h + 1, y, x]];
-                let [[a, b, c]] = mul(rot, t);
+            let mut x = ox as isize - h;
+            let mut y = oy as isize - h;
+            if x >= 0 {
+                x += 1;
+            }
+            if y >= 0 {
+                y += 1;
+            }
+            let t = [[h + 1, -y, x]];
+            let [[a, b, c]] = mul(rot, t);
+
+            if is_thing {
                 coll.insert((a, b, c));
             }
+
+            all.insert((a, b, c), (frame_l.1 + ox, frame_l.0 + oy));
         }
     }
     Some(())
 }
 
-impl Cube {
-    fn new<const L: usize>(board: &Board) -> Self {
+impl<const L: usize> Cube<L> {
+    fn new(board: &Board) -> Self {
+        let mut all = HashMap::new();
         let mut coll = HashSet::new();
         let row = [None, None, None, None];
         let mut frames: [[Option<Frame>; 4]; 4] =
             [row.clone(), row.clone(), row.clone(), row.clone()];
         let mut c_f = None;
+        let mut sides = Vec::new();
 
         for i in 0..4 {
             let x = i * L;
@@ -256,22 +326,23 @@ impl Cube {
         let mut done = HashSet::new();
         done.insert(c_f.unwrap());
 
-        let mut i = 6;
+        let h = L as isize / 2;
         while let Some((f, rot)) = stack.pop() {
-            if i == 0 {
-                break;
-            }
-            i -= 1;
-            println!("frame {:?}", frames[f.1 - 1][f.0 - 1]);
+            let t = [[h + 1, 0, 0]];
+            let [[a, b, c]] = mul(rot, t);
+            sides.push(((a, b, c), rot, f));
+
             expand_coll::<L>(
                 &mut coll,
+                &mut all,
                 frames[f.1 - 1][f.0 - 1].as_ref().unwrap(),
+                ((f.1 - 1) * L, (f.0 - 1) * L),
                 rot.clone(),
             );
 
             for d in [Dir::E, Dir::W, Dir::S, Dir::N] {
                 let n = d.apply(f);
-                if n.0 == 0 || n.1 == 0 || n.0 == 4 || n.1 == 4 {
+                if n.0 == 0 || n.1 == 0 || n.0 == 5 || n.1 == 5 {
                     continue;
                 }
 
@@ -282,7 +353,239 @@ impl Cube {
             }
         }
 
-        Self { collisions: coll }
+        Self {
+            collisions: coll,
+            all,
+            sides,
+        }
+    }
+
+    fn get_output(&self, trans: Trans) -> usize {
+        let (x, y) = self.all[&trans.pos];
+        let (ox, oy) = self.all[&trans.old_pos];
+        let (dx, dy) = (x as isize - ox as isize, y as isize - oy as isize);
+        let extra = match (dx, dy) {
+            (0, 1) => 1,
+            (0, -1) => 3,
+            (1, 0) => 0,
+            (-1, 0) => 2,
+            _ => panic!(),
+        };
+        return (y + 1) * 1000 + 4 * (x + 1) + extra;
+    }
+
+    #[allow(unused)]
+    fn print2(&self, peep: P3, old: P3) {
+        let mut field_row = Vec::new();
+        field_row.resize(L * 4, b' ');
+        let mut field = Vec::new();
+        field.resize(L * 4, field_row);
+
+        for (k, &(y, x)) in &self.all {
+            if self.collisions.contains(k) {
+                field[x][y] = b'*';
+            } else if &peep == k {
+                field[x][y] = b'@';
+            } else if &old == k {
+                field[x][y] = b'o';
+            } else {
+                field[x][y] = b'.';
+            }
+        }
+
+        for line in field {
+            let line_start = line.iter().take_while(|&x| *x == b' ').count();
+            let line_end = line_start
+                + line[line_start..]
+                    .iter()
+                    .take_while(|&x| *x != b' ')
+                    .count();
+            println!("{}", unsafe {
+                std::str::from_utf8_unchecked(&line[..line_end])
+            });
+            if line.iter().all(|&f| f == b' ') {
+                break;
+            }
+        }
+    }
+
+    #[allow(unused)]
+    fn print(&self, peep: &P3, old: &P3) {
+        println!("Printing pos {:?}", peep);
+        let h = (L as isize) / 2;
+        let empty = || {
+            for r in -h..h + 1 {
+                if r == 0 {
+                    continue;
+                }
+                print!(" ");
+            }
+        };
+
+        let print = |l, d: char| {
+            if l == *peep {
+                print!("\x1b[93m█\x1b[0m");
+            } else if l == *old {
+                print!("\x1b[93mo\x1b[0m");
+            } else {
+                if self.collisions.contains(&l) {
+                    print!("#");
+                } else {
+                    print!("{}", d);
+                }
+            }
+        };
+
+        // TOP
+        for r in -h..h + 1 {
+            if r == 0 {
+                continue;
+            }
+            empty();
+
+            for c in -h..h + 1 {
+                if c == 0 {
+                    continue;
+                }
+                print((r, h + 1, c), 'T');
+            }
+            println!();
+        }
+
+        // FRONT
+        for r in (-h..h + 1).rev() {
+            if r == 0 {
+                continue;
+            }
+
+            for c in -h..h + 1 {
+                if c == 0 {
+                    continue;
+                }
+                print((c, r, -h - 1), 'L');
+            }
+
+            for c in -h..h + 1 {
+                if c == 0 {
+                    continue;
+                }
+                print((h + 1, r, c), 'F');
+            }
+
+            for c in (-h..h + 1).rev() {
+                if c == 0 {
+                    continue;
+                }
+                print((c, r, h + 1), 'R');
+            }
+            println!();
+        }
+
+        // BOT
+        for r in -h..h + 1 {
+            if r == 0 {
+                continue;
+            }
+            empty();
+
+            for c in -h..h + 1 {
+                if c == 0 {
+                    continue;
+                }
+                print((-r, -h - 1, c), 'D');
+            }
+            println!();
+        }
+
+        // BACK
+        for r in -h..h + 1 {
+            if r == 0 {
+                continue;
+            }
+            empty();
+
+            for c in -h..h + 1 {
+                if c == 0 {
+                    continue;
+                }
+                print((-h - 1, r, c), 'B');
+            }
+            println!();
+        }
+    }
+}
+
+type DirTy = [[isize; 1]; 3];
+
+#[derive(Copy, Clone, Debug)]
+struct Trans {
+    old_pos: P3,
+    pos: P3,
+    dir: DirTy,
+    g_trans: [[isize; 3]; 3],
+}
+
+impl Trans {
+    fn mov(&self) -> Self {
+        let dir = mul(self.dir, self.g_trans);
+        let mut tr = (
+            self.pos.0 + dir[0][0],
+            self.pos.1 + dir[1][0],
+            self.pos.2 + dir[2][0],
+        );
+
+        if tr.0 == 0 || tr.1 == 0 || tr.2 == 0 {
+            tr = (tr.0 + dir[0][0], tr.1 + dir[1][0], tr.2 + dir[2][0]);
+        }
+
+        Self {
+            old_pos: self.pos,
+            pos: tr,
+            dir: self.dir,
+            g_trans: self.g_trans,
+        }
+    }
+
+    fn rot(&self, l: char) -> Self {
+        let dir = match l {
+            'R' => mul(self.dir, Dir::E.rot2()),
+            'L' => mul(self.dir, Dir::W.rot2()),
+            _ => panic!(),
+        };
+        Self {
+            old_pos: self.old_pos,
+            pos: self.pos,
+            dir,
+            g_trans: self.g_trans,
+        }
+    }
+
+    fn apply(&self, dir: Dir) -> Self {
+        let g_trans = mul(dir.rot(), self.g_trans);
+        Self {
+            old_pos: self.old_pos,
+            pos: self.pos,
+            dir: self.dir,
+            g_trans,
+        }
+    }
+
+    fn find_turn(&self, l: isize) -> Self {
+        for d in [Dir::N, Dir::S, Dir::E, Dir::W] {
+            let this = self.apply(d).mov();
+
+            if this.valid_pos(l) {
+                return this;
+            }
+        }
+        todo!();
+    }
+    fn valid_pos(&self, l: isize) -> bool {
+        [self.pos.0, self.pos.1, self.pos.2]
+            .into_iter()
+            .filter(|x| x.abs() >= l)
+            .count()
+            <= 1
     }
 }
 
@@ -307,11 +610,10 @@ pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
         let mut dir = Dir::default();
         pos = find_next(pos, dir, &board)?;
 
-        for m in moves {
+        for m in &moves {
             match m {
                 Ok(i) => {
-                    // println!("handle move {} (dir {:?})", i, dir);
-                    for _ in 0..i {
+                    for _ in 0..*i {
                         if let Some(x) = find_next(pos, dir, &board) {
                             pos = x;
                         } else {
@@ -326,6 +628,7 @@ pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
                 },
             }
         }
+
         println!(
             "Part 1: {:?} {:?} = {}",
             pos,
@@ -333,11 +636,44 @@ pub fn solve<const P1: bool, const P2: bool>(buf: impl BufRead) -> Option<()> {
             pos.1 * 1000 + 4 * pos.0 + dir.score()
         );
     }
+
     if P2 {
+        const S: usize = 50;
+
         let board: Board = lines.iter().map(|x| x.as_bytes().to_vec()).collect();
-        let cube = Cube::new::<4>(&board);
-        println!("cube {:?}", cube);
-        println!("Part 2");
+        let cube = Cube::<S>::new(&board);
+
+        let l = S as isize / 2 + 1;
+        let mut trans = Trans {
+            pos: (l, l - 1, -l + 1),
+            old_pos: (l, l - 1, -l + 1),
+            dir: [[0], [0], [1]],
+            g_trans: [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+        };
+
+        for m in moves.into_iter() {
+            match m {
+                Ok(i) => {
+                    for _ in 0..i {
+                        let mut tr = trans.mov();
+
+                        if !tr.valid_pos(l) {
+                            tr = tr.find_turn(l);
+                        }
+
+                        if cube.collisions.contains(&tr.pos) {
+                            break;
+                        }
+                        trans = tr;
+                    }
+                }
+                Err(c) => {
+                    trans = trans.rot(c);
+                }
+            }
+        }
+
+        println!("Part 2: {}", cube.get_output(trans));
     }
     Some(())
 }

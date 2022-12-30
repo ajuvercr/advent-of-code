@@ -1,8 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    io::BufRead,
-    thread,
-};
+use std::{collections::HashSet, io::BufRead, thread};
 
 use crate::{parse, AlphaNumTest, Parse, Word};
 
