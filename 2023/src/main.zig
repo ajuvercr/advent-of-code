@@ -5,24 +5,49 @@ const Literal = struct {
     value: usize,
     name: []const u8,
 };
-const literals = [_]Literal{
-    // Literal{ .value = 0, .name = "zero" },
-    Literal{ .value = 1, .name = "one" },
-    Literal{ .value = 2, .name = "two" },
-    Literal{ .value = 3, .name = "three" },
-    Literal{ .value = 4, .name = "four" },
-    Literal{ .value = 5, .name = "five" },
-    Literal{ .value = 6, .name = "six" },
-    Literal{ .value = 7, .name = "seven" },
-    Literal{ .value = 8, .name = "eight" },
-    Literal{ .value = 9, .name = "nine" },
+
+const o_literals = [_]Literal{
+    Literal{ .value = 1, .name = "ne" },
 };
-fn parse_spelled(parser: *std.fmt.Parser) ?usize {
-    for (literals) |lit| {
+
+const t_literals = [_]Literal{
+    Literal{ .value = 2, .name = "wo" },
+    Literal{ .value = 3, .name = "hree" },
+};
+
+const f_literals = [_]Literal{
+    Literal{ .value = 4, .name = "our" },
+    Literal{ .value = 5, .name = "ive" },
+};
+
+const s_literals = [_]Literal{
+    Literal{ .value = 6, .name = "ix" },
+    Literal{ .value = 7, .name = "even" },
+};
+
+const e_literals = [_]Literal{
+    Literal{ .value = 8, .name = "ight" },
+};
+
+const n_literals = [_]Literal{
+    Literal{ .value = 9, .name = "ine" },
+};
+
+fn parse_spelled(first: u8, parser: *std.fmt.Parser) ?usize {
+    const lits = switch (first) {
+        'o' => o_literals[0..],
+        't' => t_literals[0..],
+        'f' => f_literals[0..],
+        's' => s_literals[0..],
+        'e' => e_literals[0..],
+        'n' => n_literals[0..],
+        else => return null,
+    };
+
+    for (lits) |lit| {
         if (parser.buf.len < parser.pos + lit.name.len) continue;
         const slice = parser.buf[parser.pos .. parser.pos + lit.name.len];
         if (std.mem.eql(u8, slice, lit.name)) {
-            parser.pos += 1;
             return lit.value;
         }
     }
@@ -41,29 +66,35 @@ pub fn main() !void {
     var total: usize = 0;
 
     while (par.peek(0) != undefined) : (par.pos += 1) {
-        var start: ?usize = null;
+        var first = true;
+        var start: usize = 0;
         var last: usize = 0;
+
         while (par.peek(0) orelse '\n' != '\n') {
-            if (parse_spelled(&par)) |val| {
-                if (start == null) {
+            const dig = par.char().?;
+
+            if (dig >= '0' and dig <= '9') {
+                if (first) {
+                    start = dig - '0';
+                    first = false;
+                }
+
+                last = dig - '0';
+                continue;
+            }
+
+            if (parse_spelled(dig, &par)) |val| {
+                if (first) {
                     start = val;
+                    first = false;
                 }
 
                 last = val;
                 continue;
             }
-
-            const dig = par.char().?;
-            if (dig >= '0' and dig <= '9') {
-                if (start == null) {
-                    start = dig - '0';
-                }
-
-                last = dig - '0';
-            }
         }
 
-        total += (start orelse 0) * 10 + last;
+        total += start * 10 + last;
     }
 
     std.debug.print("Part1 {}\n", .{total});
