@@ -1,97 +1,79 @@
 const std = @import("std");
 const expect = std.testing.expect;
 
+const Literal = struct {
+    value: usize,
+    name: []const u8,
+};
+const literals = [_]Literal{
+    // Literal{ .value = 0, .name = "zero" },
+    Literal{ .value = 1, .name = "one" },
+    Literal{ .value = 2, .name = "two" },
+    Literal{ .value = 3, .name = "three" },
+    Literal{ .value = 4, .name = "four" },
+    Literal{ .value = 5, .name = "five" },
+    Literal{ .value = 6, .name = "six" },
+    Literal{ .value = 7, .name = "seven" },
+    Literal{ .value = 8, .name = "eight" },
+    Literal{ .value = 9, .name = "nine" },
+};
+fn parse_spelled(parser: *std.fmt.Parser) ?usize {
+    for (literals) |lit| {
+        if (parser.buf.len < parser.pos + lit.name.len) continue;
+        const slice = parser.buf[parser.pos .. parser.pos + lit.name.len];
+        if (std.mem.eql(u8, slice, lit.name)) {
+            parser.pos += 1;
+            return lit.value;
+        }
+    }
+    return null;
+}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
     var file2 = try std.fs.cwd().openFile("input.txt", .{});
-    const contents = try file2.readToEndAlloc(allocator, 20000);
+    const contents = try file2.readToEndAlloc(allocator, 200000);
     defer allocator.free(contents);
 
     var par = std.fmt.Parser{ .buf = contents };
-    var max: ?usize = null;
-    var maxes: [3]?usize = [3]?usize{ null, null, null };
-    var current: usize = 0;
+    var total: usize = 0;
 
-    while (par.peek(0) != undefined) {
-        const line = par.number();
-        if (line) |num| {
-            current += num;
-        } else {
-            if (max orelse 0 < current) {
-                max = current;
-            }
-
-            for (0..3) |i| {
-                if (maxes[i] orelse 0 < current) {
-                    var end: u32 = 2;
-                    while (end > i) : (end -= 1) {
-                        maxes[end] = maxes[end - 1];
-                    }
-
-                    maxes[i] = current;
-                    break;
+    while (par.peek(0) != undefined) : (par.pos += 1) {
+        var start: ?usize = null;
+        var last: usize = 0;
+        while (par.peek(0) orelse '\n' != '\n') {
+            if (parse_spelled(&par)) |val| {
+                if (start == null) {
+                    start = val;
                 }
-            }
-            current = 0;
-        }
-        par.pos += 1;
-    }
 
-    if (max orelse 0 < current) {
-        max = current;
-    }
-
-    for (0..3) |i| {
-        if (maxes[i] orelse 0 < current) {
-            var end: u32 = 2;
-            while (end > i) : (end -= 1) {
-                maxes[end] = maxes[end - 1];
+                last = val;
+                continue;
             }
 
-            maxes[i] = current;
-            break;
+            const dig = par.char().?;
+            if (dig >= '0' and dig <= '9') {
+                if (start == null) {
+                    start = dig - '0';
+                }
+
+                last = dig - '0';
+            }
         }
+
+        total += (start orelse 0) * 10 + last;
     }
 
-    var part2: usize = 0;
-    for (0..3) |i| {
-        part2 += maxes[i] orelse 0;
-    }
-
-    std.debug.print("Max calories {}\n", .{max orelse 0});
-    std.debug.print("Max calories {}\n", .{part2});
+    std.debug.print("Part1 {}\n", .{total});
 }
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    const ctx = std.array_hash_map.AutoContext(i32);
-    var map = std.ArrayHashMap(i32, i32, ctx, false).init(std.testing.allocator);
-    defer map.deinit();
-    try map.put(2, 23);
+test "parse lit" {
+    var par = std.fmt.Parser{ .buf = "onettwo" };
+    try expect(parse_spelled(&par) == 1);
+    try expect(par.char() == 't');
 
-    std.debug.print("Contains number 2 {}\n", .{map.contains(2)});
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
-}
-
-const Suit = enum {
-    clubs,
-    spades,
-    diamonds,
-    hearts,
-    pub fn isClubs(self: Suit) bool {
-        return self == Suit.clubs;
-    }
-};
-
-fn testing(a: ?i32) ?i32 {
-    var b = a orelse return;
-    return b + 1;
-}
-
-test "enum method" {
-    try expect(Suit.spades.isClubs() == Suit.isClubs(.spades));
+    try expect(parse_spelled(&par) == 2);
+    try expect(par.char() == null);
 }
