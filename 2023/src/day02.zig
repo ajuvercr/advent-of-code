@@ -47,6 +47,10 @@ fn maybeSet(val: *usize, amount: usize) void {
     }
 }
 
+pub fn main() !void {
+    try day("./input/02.txt");
+}
+
 pub fn day(file: []const u8) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();

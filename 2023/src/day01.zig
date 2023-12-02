@@ -54,6 +54,10 @@ fn parse_spelled(first: u8, parser: *std.fmt.Parser) ?usize {
     return null;
 }
 
+pub fn main() !void {
+    try day("./input/01.txt");
+}
+
 pub fn day(file: []const u8) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
