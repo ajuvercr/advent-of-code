@@ -1,19 +1,8 @@
 const std = @import("std");
+const utils = @import("./utils.zig");
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    const args = try std.process.argsAlloc(allocator);
-
-    var inp: []const u8 = undefined;
-    if (args.len >= 2) {
-        inp = args[1];
-    } else {
-        inp = "./test.txt";
-    }
-
-    std.debug.print("\n", .{});
-    try day(inp, allocator);
+    try utils.mainImpl(day);
 }
 
 fn calc_deltas(prev: std.ArrayList(isize), alloc: std.mem.Allocator) !std.ArrayList(isize) {
@@ -56,11 +45,7 @@ fn calc_next(items: *std.ArrayList(isize), last: isize, back: bool) !isize {
     }
 }
 
-pub fn day(file: []const u8, allocator: std.mem.Allocator) !void {
-    var file2 = try std.fs.cwd().openFile(file, .{});
-    const contents = try file2.readToEndAlloc(allocator, 200000);
-    defer allocator.free(contents);
-
+pub fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
     var par = std.fmt.Parser{ .buf = contents };
 
     var total: i64 = 0;

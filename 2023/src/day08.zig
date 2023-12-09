@@ -1,11 +1,8 @@
 const std = @import("std");
+const utils = @import("./utils.zig");
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    const args = try std.process.argsAlloc(allocator);
-    // try day("./test.txt");
-    try day(args[1]);
+    try utils.mainImpl(day);
 }
 
 fn index(par: *std.fmt.Parser, starts: *std.ArrayList(usize), ends: *std.ArrayList(usize)) !usize {
@@ -24,46 +21,31 @@ fn index(par: *std.fmt.Parser, starts: *std.ArrayList(usize), ends: *std.ArrayLi
     return out;
 }
 
-fn calc_moves(dirs: []const u8, moves: *[17576][2]usize, starts: []usize, ends: []usize) u64 {
-    var part1: u64 = 0;
+fn is_finished(idx: usize, ends: []const usize) bool {
+    for (ends) |e| {
+        if (idx == e) return true;
+    }
+    return false;
+}
 
-    var found = false;
+fn calc_move(dirs: []const u8, moves: *const [17576][2]usize, start: usize, ends: []const usize) u64 {
+    var current: usize = start;
+    var out: u64 = 0;
+    while (!is_finished(current, ends)) {
+        const move = dirs[out % dirs.len];
+        out += 1;
 
-    // while (idx != 17575) {
-    while (!found) {
-        found = true;
-        const move = dirs[part1 % dirs.len];
-        part1 += 1;
-        for (0..starts.len) |i| {
-            const idx = starts[i];
-            if (move == 'R') {
-                starts[i] = moves[idx][1];
-            } else {
-                starts[i] = moves[idx][0];
-            }
-
-            var sub = false;
-            for (0..ends.len) |j| {
-                if (starts[i] == ends[j]) {
-                    sub = true;
-                    break;
-                }
-            }
-            found = found and sub;
+        if (move == 'R') {
+            current = moves[current][1];
+        } else {
+            current = moves[current][0];
         }
     }
 
-    return part1;
+    return out;
 }
 
-pub fn day(file: []const u8) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-
-    var file2 = try std.fs.cwd().openFile(file, .{});
-    const contents = try file2.readToEndAlloc(allocator, 200000);
-    defer allocator.free(contents);
-
+pub fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
     var starts = std.ArrayList(usize).init(allocator);
     var ends = std.ArrayList(usize).init(allocator);
 
@@ -82,7 +64,15 @@ pub fn day(file: []const u8) !void {
 
         moves[idx] = [2]usize{ a, b };
     }
-    std.debug.print("starts {} ends {}\n", .{ starts, ends });
 
-    std.debug.print("Part1 {}\n", .{calc_moves(dir, &moves, starts.items, ends.items)});
+    std.debug.print("Part1: {}\n", .{calc_move(dir, &moves, 0, &[_]usize{17575})});
+
+    var part2: u64 = 1;
+    for (starts.items) |start| {
+        const count = calc_move(dir, &moves, start, ends.items);
+        const gcd = std.math.gcd(part2, count);
+        part2 = part2 / gcd * count;
+    }
+
+    std.debug.print("Part2: {}\n", .{part2});
 }
