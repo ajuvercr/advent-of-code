@@ -1,8 +1,8 @@
 const std = @import("std");
+const utils = @import("./utils.zig");
 
 pub fn main() !void {
-    try day("./input/03.txt");
-    // try day("./test.txt");
+    try utils.mainImpl(day);
 }
 
 const DIRS = [_][2]isize{
@@ -46,14 +46,8 @@ fn parse_num_ret(parser: *std.fmt.Parser) usize {
     return out;
 }
 
-pub fn day(file: []const u8) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-
-    var file2 = try std.fs.cwd().openFile(file, .{});
-    const contents = try file2.readToEndAlloc(allocator, 200000);
-    defer allocator.free(contents);
-
+fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
+    _ = allocator;
     var rows: isize = 0;
     for (contents) |c| {
         if (c == '\n') rows += 1;

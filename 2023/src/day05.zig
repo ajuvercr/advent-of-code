@@ -1,4 +1,9 @@
 const std = @import("std");
+const utils = @import("./utils.zig");
+
+pub fn main() !void {
+    try utils.mainImpl(day);
+}
 
 const Range = struct {
     dest: usize,
@@ -104,19 +109,9 @@ fn parse_range(par: *std.fmt.Parser) Range {
 
     return Range{ .dest = dest, .start = start, .len = len };
 }
-pub fn main() !void {
-    try day("./input/05.txt");
-    // try day("./test.txt");
-}
 
-pub fn day(fileName: []const u8) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-
-    var file = try std.fs.cwd().openFile(fileName, .{});
-    const contents = try file.readToEndAlloc(allocator, 200000);
-    defer allocator.free(contents);
-
+fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
+    _ = allocator;
     var par = std.fmt.Parser{ .buf = contents };
 
     var part1 = std.mem.zeroes(Part1);
@@ -131,8 +126,7 @@ pub fn day(fileName: []const u8) !void {
     par.pos += 2;
 
     while (par.peek(0) != null) : (par.pos += 1) {
-        const name = par.until('\n');
-        std.debug.print("Handling {s}\n", .{name});
+        _ = par.until('\n');
         par.pos += 1;
 
         part1.reset();
@@ -140,7 +134,6 @@ pub fn day(fileName: []const u8) !void {
 
         while (peek >= '0' and peek <= '9') : (peek = par.peek(0) orelse '\n') {
             const range = parse_range(&par);
-            std.debug.print("Range {} {} {}\n", .{ range.dest, range.start, range.len });
             part1.handle_range(&range);
         }
     }

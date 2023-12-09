@@ -1,8 +1,8 @@
 const std = @import("std");
+const utils = @import("./utils.zig");
 
 pub fn main() !void {
-    try day("./input/06.txt");
-    try day("./test.txt");
+    try utils.mainImpl(day);
 }
 
 fn spaces(par: *std.fmt.Parser) void {
@@ -24,13 +24,8 @@ fn calc_wins(time: usize, dist: usize) usize {
     return periode_c;
 }
 
-pub fn day(file: []const u8) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-
-    var file2 = try std.fs.cwd().openFile(file, .{});
-    const contents = try file2.readToEndAlloc(allocator, 200000);
-    defer allocator.free(contents);
+fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
+    _ = allocator;
 
     var par = std.fmt.Parser{ .buf = contents };
 

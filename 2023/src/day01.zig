@@ -1,5 +1,10 @@
 const std = @import("std");
 const expect = std.testing.expect;
+const utils = @import("./utils.zig");
+
+pub fn main() !void {
+    try utils.mainImpl(day);
+}
 
 const Literal = struct {
     value: usize,
@@ -54,54 +59,64 @@ fn parse_spelled(first: u8, parser: *std.fmt.Parser) ?usize {
     return null;
 }
 
-pub fn main() !void {
-    try day("./input/01.txt");
-}
+const Numbers = struct {
+    start: usize,
+    last: usize,
+    first: bool,
 
-pub fn day(file: []const u8) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
+    fn new() Numbers {
+        return Numbers{
+            .start = 0,
+            .last = 0,
+            .first = true,
+        };
+    }
 
-    var file2 = try std.fs.cwd().openFile(file, .{});
-    const contents = try file2.readToEndAlloc(allocator, 200000);
-    defer allocator.free(contents);
+    fn update(self: *Numbers, new_val: usize) void {
+        if (self.first) {
+            self.start = new_val;
+            self.first = false;
+        }
 
+        self.last = new_val;
+    }
+
+    fn val(self: *Numbers) usize {
+        return self.start * 10 + self.last;
+    }
+};
+
+fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
+    _ = allocator;
     var par = std.fmt.Parser{ .buf = contents };
     var total: usize = 0;
+    var total2: usize = 0;
 
     while (par.peek(0) != undefined) : (par.pos += 1) {
-        var first = true;
-        var start: usize = 0;
-        var last: usize = 0;
+        var part1 = Numbers.new();
+        var part2 = Numbers.new();
 
         while (par.peek(0) orelse '\n' != '\n') {
             const dig = par.char().?;
 
             if (dig >= '0' and dig <= '9') {
-                if (first) {
-                    start = dig - '0';
-                    first = false;
-                }
-
-                last = dig - '0';
+                part1.update(dig - '0');
+                part2.update(dig - '0');
                 continue;
             }
 
             if (parse_spelled(dig, &par)) |val| {
-                if (first) {
-                    start = val;
-                    first = false;
-                }
-
-                last = val;
+                part2.update(val);
                 continue;
             }
         }
 
-        total += start * 10 + last;
+        total += part1.val();
+        total2 += part2.val();
     }
 
     std.debug.print("Part1 {}\n", .{total});
+    std.debug.print("Part2 {}\n", .{total2});
 }
 
 test "parse lit" {

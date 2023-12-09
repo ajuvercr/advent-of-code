@@ -1,4 +1,9 @@
 const std = @import("std");
+const utils = @import("./utils.zig");
+
+pub fn main() !void {
+    try utils.mainImpl(day);
+}
 
 const Type = enum(u4) {
     Five,
@@ -146,11 +151,6 @@ const Hand = struct {
     }
 };
 
-pub fn main() !void {
-    try day("./input/07.txt");
-    try day("./test.txt");
-}
-
 fn sortBy(ctx: void, a: Hand, b: Hand) bool {
     _ = ctx;
     if (@intFromEnum(a.type) < @intFromEnum(b.type)) return true;
@@ -164,17 +164,11 @@ fn sortBy(ctx: void, a: Hand, b: Hand) bool {
     unreachable;
 }
 
-pub fn day(file: []const u8) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-
-    var file2 = try std.fs.cwd().openFile(file, .{});
-    const contents = try file2.readToEndAlloc(allocator, 200000);
-    defer allocator.free(contents);
-
+fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
     var par = std.fmt.Parser{ .buf = contents };
     var hands = std.ArrayList(Hand).init(allocator);
     defer hands.deinit();
+
     while (par.peek(0) != undefined) {
         const cards = par.buf[par.pos .. par.pos + 5];
         par.pos += 6;

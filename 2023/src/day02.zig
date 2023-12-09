@@ -1,4 +1,9 @@
 const std = @import("std");
+const utils = @import("./utils.zig");
+
+pub fn main() !void {
+    try utils.mainImpl(day);
+}
 const Ball = enum {
     blue,
     red,
@@ -36,9 +41,26 @@ fn parse_color(par: *std.fmt.Parser) ?Ball {
     return null;
 }
 
-const Game = struct {
-    value: usize,
-    name: []const u8,
+const Counts = struct {
+    minBlue: usize,
+    minRed: usize,
+    minGreen: usize,
+
+    fn maybeSet(self: *Counts, ball: Ball, amount: usize) void {
+        switch (ball) {
+            Ball.blue => self.minBlue = @max(self.minBlue, amount),
+            Ball.red => self.minRed = @max(self.minRed, amount),
+            Ball.green => self.minGreen = @max(self.minGreen, amount),
+        }
+    }
+
+    fn val(self: *const Counts) usize {
+        return self.minBlue * self.minRed * self.minGreen;
+    }
+
+    fn valid(self: *const Counts) bool {
+        return self.minRed <= 12 and self.minGreen <= 13 and self.minBlue <= 14;
+    }
 };
 
 fn maybeSet(val: *usize, amount: usize) void {
@@ -47,32 +69,16 @@ fn maybeSet(val: *usize, amount: usize) void {
     }
 }
 
-pub fn main() !void {
-    try day("./input/02.txt");
-}
-
-pub fn day(file: []const u8) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-
-    var file2 = try std.fs.cwd().openFile(file, .{});
-    const contents = try file2.readToEndAlloc(allocator, 200000);
-    defer allocator.free(contents);
-
+fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
+    _ = allocator;
     var par = std.fmt.Parser{ .buf = contents };
     var total: usize = 0;
     var total2: usize = 0;
 
     while (par.peek(0) != undefined) : (par.pos += 1) {
+        var counts = Counts{ .minGreen = 0, .minRed = 0, .minBlue = 0 };
         par.pos += 5;
         const id = par.number().?;
-        total += id;
-
-        var valid = true;
-
-        var minBlue: usize = 0;
-        var minRed: usize = 0;
-        var minGreen: usize = 0;
 
         while (par.peek(0) orelse '\n' != '\n') {
             par.pos += 2;
@@ -80,19 +86,14 @@ pub fn day(file: []const u8) !void {
             par.pos += 1;
             const col = parse_color(&par).?;
 
-            switch (col) {
-                Ball.blue => maybeSet(&minBlue, amount),
-                Ball.red => maybeSet(&minRed, amount),
-                Ball.green => maybeSet(&minGreen, amount),
-            }
-
-            if (!col.isValid(amount) and valid) {
-                valid = false;
-                total -= id;
-            }
+            counts.maybeSet(col, amount);
         }
 
-        total2 += minGreen * minRed * minBlue;
+        if (counts.valid()) {
+            total += id;
+        }
+
+        total2 += counts.val();
     }
 
     std.debug.print("Part1 {}\n", .{total});
