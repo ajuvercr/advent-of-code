@@ -166,24 +166,30 @@ fn sortBy(ctx: void, a: Hand, b: Hand) bool {
 
 fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
     var par = std.fmt.Parser{ .buf = contents };
-    var hands = std.ArrayList(Hand).init(allocator);
-    defer hands.deinit();
+
+    var hands1 = std.ArrayList(Hand).init(allocator);
+    var hands2 = std.ArrayList(Hand).init(allocator);
 
     while (par.peek(0) != undefined) {
         const cards = par.buf[par.pos .. par.pos + 5];
         par.pos += 6;
         const bid = par.number().?;
 
-        try hands.append(Hand.new(cards, bid, false));
+        try hands1.append(Hand.new(cards, bid, true));
+        try hands2.append(Hand.new(cards, bid, false));
         par.pos += 1;
     }
 
-    var total: usize = 0;
-    std.sort.heap(Hand, hands.items, {}, sortBy);
+    std.sort.heap(Hand, hands1.items, {}, sortBy);
+    std.sort.heap(Hand, hands2.items, {}, sortBy);
 
-    for (0..hands.items.len) |i| {
-        total += (hands.items.len - i) * hands.items[i].bid;
+    var total1: usize = 0;
+    var total2: usize = 0;
+    for (0..hands1.items.len) |i| {
+        total1 += (hands1.items.len - i) * hands1.items[i].bid;
+        total2 += (hands2.items.len - i) * hands2.items[i].bid;
     }
 
-    std.debug.print("Part1 {}\n", .{total});
+    std.debug.print("Part1 {}\n", .{total1});
+    std.debug.print("Part2 {}\n", .{total2});
 }
