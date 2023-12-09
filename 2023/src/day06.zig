@@ -25,8 +25,6 @@ fn calc_wins(time: usize, dist: usize) usize {
 }
 
 fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
-    _ = allocator;
-
     var par = std.fmt.Parser{ .buf = contents };
 
     var times = std.mem.zeroes([10]usize);
@@ -52,9 +50,18 @@ fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
     var total: usize = 1;
     for (0..dist_count) |i| {
         total *= calc_wins(times[i], dists[i]);
-        std.debug.print("{}\n", .{calc_wins(times[i], dists[i])});
     }
 
+    var dist_vec = std.ArrayList(u8).init(allocator);
+    var times_vec = std.ArrayList(u8).init(allocator);
+    for (0..dist_count) |i| {
+        try std.fmt.format(dist_vec.writer(), "{}", .{dists[i]});
+        try std.fmt.format(times_vec.writer(), "{}", .{times[i]});
+    }
+
+    const big_time = try std.fmt.parseInt(usize, times_vec.items, 10);
+    const big_dist = try std.fmt.parseInt(usize, dist_vec.items, 10);
+
     std.debug.print("Part1 {}\n", .{total});
-    std.debug.print("Part2 {}\n", .{calc_wins(56977793, 499221010971440)});
+    std.debug.print("Part2 {}\n", .{calc_wins(big_time, big_dist)});
 }
