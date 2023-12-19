@@ -4,6 +4,122 @@ const utils = @import("./utils.zig");
 pub fn main() !void {
     try utils.mainImpl(day);
 }
+const Range = struct {
+    min: u64,
+    max: u64,
+    fn new(min: usize, max: usize) Range {
+        return Range{
+            .min = min,
+            .max = max,
+        };
+    }
+
+    fn split(self: *const Range, op: Operator, at: usize) ?[2]Range {
+        if (at < self.max and at >= self.min) {
+            switch (op) {
+                Operator.Lt => {
+                    return .{
+                        Range.new(self.min, at),
+                        Range.new(at, self.max),
+                    };
+                },
+                Operator.Gt => {
+                    return .{
+                        Range.new(at + 1, self.max),
+                        Range.new(self.min, at + 1),
+                    };
+                },
+            }
+        } else {
+            return null;
+        }
+    }
+    fn value(self: *const Range) u64 {
+        return self.max - self.min;
+    }
+    fn valid(self: *const Range) bool {
+        return self.min < self.max;
+    }
+};
+
+const RInput = struct {
+    x: Range,
+    m: Range,
+    a: Range,
+    s: Range,
+
+    fn start() RInput {
+        return RInput{
+            .x = Range.new(1, 4001),
+            .m = Range.new(1, 4001),
+            .a = Range.new(1, 4001),
+            .s = Range.new(1, 4001),
+        };
+    }
+
+    fn valid(self: *const RInput) bool {
+        return self.x.valid() and self.m.valid() and self.a.valid() and self.s.valid();
+    }
+
+    fn value(self: *const RInput) u64 {
+        return self.x.value() * self.m.value() * self.a.value() * self.s.value();
+    }
+
+    fn split(self: *RInput, option: *const Option) ?RInput {
+        var sidx: usize = 1;
+        var oidx: usize = 0;
+
+        switch (option.field) {
+            'x' => {
+                if (self.x.split(option.op, option.value)) |things| {
+                    self.x = things[sidx];
+                    return RInput{
+                        .x = things[oidx],
+                        .m = self.m,
+                        .a = self.a,
+                        .s = self.s,
+                    };
+                }
+            },
+            'm' => {
+                if (self.m.split(option.op, option.value)) |things| {
+                    self.m = things[sidx];
+                    return RInput{
+                        .x = self.x,
+                        .m = things[oidx],
+                        .a = self.a,
+                        .s = self.s,
+                    };
+                }
+            },
+            'a' => {
+                if (self.a.split(option.op, option.value)) |things| {
+                    self.a = things[sidx];
+
+                    return RInput{
+                        .x = self.x,
+                        .m = self.m,
+                        .a = things[oidx],
+                        .s = self.s,
+                    };
+                }
+            },
+            's' => {
+                if (self.s.split(option.op, option.value)) |things| {
+                    self.s = things[sidx];
+                    return RInput{
+                        .x = self.x,
+                        .m = self.m,
+                        .a = self.a,
+                        .s = things[oidx],
+                    };
+                }
+            },
+            else => unreachable,
+        }
+        return null;
+    }
+};
 
 const Input = struct {
     x: usize,
@@ -164,6 +280,28 @@ const Rule = struct {
     }
 };
 
+fn calc_options(current: []const u8, map: std.StringHashMap(Rule), inpt: *RInput) u64 {
+    if (current.len == 1 and (current[0] == 'A' or current[0] == 'R')) {
+        if (current[0] == 'A') return inpt.value();
+        return 0;
+    }
+    const rule = map.get(current).?;
+    var out: u64 = 0;
+    for (rule.constraints.items) |c| {
+        if (inpt.split(&c)) |ne| {
+            if (ne.valid()) {
+                var thing = ne;
+                out += calc_options(c.target, map, &thing);
+            }
+        }
+    }
+    if (inpt.valid()) {
+        out += calc_options(rule.default, map, inpt);
+    }
+
+    return out;
+}
+
 fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
     var par = std.fmt.Parser{ .buf = contents };
     var total: usize = 0;
@@ -197,4 +335,6 @@ fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
         }
     }
     std.debug.print("Part1 {}\n", .{total});
+    var done = RInput.start();
+    std.debug.print("Part2 {}\n", .{calc_options("in", map, &done)});
 }
