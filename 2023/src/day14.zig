@@ -1,30 +1,41 @@
 const std = @import("std");
+const ArrayList = std.ArrayList;
+const eql = std.mem.eql;
 const utils = @import("./utils.zig");
 
 pub fn main() !void {
     try utils.mainImpl(day);
 }
 
+const FieldChange = struct {
+    start: usize,
+    iteration: usize,
+};
+
 const Field = struct {
     contents: []u8,
-    copy: []u8,
+    copies: ArrayList([]u8),
     line_length: usize,
     line_count: usize,
 
-    fn new(contents: []u8, copy: []u8) Field {
+    fn new(contents: []u8, alloc: std.mem.Allocator) Field {
         var line_length: usize = 0;
         while (contents[line_length] != '\n') {
             line_length += 1;
         }
 
-        var line_count = contents.len / (line_length + 1);
+        const line_count = contents.len / (line_length + 1);
 
         return Field{
             .line_count = line_count,
             .line_length = line_length,
             .contents = contents,
-            .copy = copy,
+            .copies = ArrayList([]u8).init(alloc),
         };
+    }
+
+    fn deinit(self: *Field) void {
+        self.copies.deinit();
     }
 
     fn idx(self: *Field, x: usize, y: usize) usize {
@@ -32,8 +43,8 @@ const Field = struct {
     }
 
     fn roll(self: *Field, jdx: usize, idy: usize) void {
-        var dx = jdx;
-        var dy = idy;
+        const dx = jdx;
+        const dy = idy;
 
         var x_start: usize = 0;
         var x_length: usize = 0;
@@ -74,12 +85,18 @@ const Field = struct {
         }
     }
 
-    fn changed(self: *Field) bool {
-        const out = std.mem.eql(u8, self.copy, self.contents);
-        if (out) return false;
+    fn changed(self: *Field, alloc: std.mem.Allocator) !?FieldChange {
+        for (0..self.copies.items.len) |item| {
+            if (std.mem.eql(u8, self.copies.items[item], self.contents)) {
+                return FieldChange{ .iteration = self.copies.items.len - item, .start = item };
+            }
+        }
 
-        std.mem.copy(u8, self.copy, self.contents);
-        return true;
+        const newCopy = try alloc.alloc(u8, self.contents.len);
+        std.mem.copyForwards(u8, newCopy, self.contents);
+        try self.copies.append(newCopy);
+
+        return null;
     }
 
     fn count(self: *Field) usize {
@@ -97,59 +114,33 @@ const Field = struct {
 };
 
 fn day(c: []const u8, allocator: std.mem.Allocator) anyerror!void {
-    var copy = try allocator.alloc(u8, c.len);
-    var total: usize = 0;
-    _ = total;
     const contents = @constCast(c);
-    //
-    // var line_length: usize = 0;
-    // while (contents[line_length] != '\n') {
-    //     line_length += 1;
-    // }
-    //
-    // var line_count = contents.len / (line_length + 1);
-    //
-    // for (0..line_count) |_| {
-    //     // one less in the line count (going up)
-    //     for (0..line_count - 1) |y| {
-    //         // All theses
-    //         for (0..line_length) |x| {
-    //             const this_idx = y * (line_length + 1) + x;
-    //             const this = contents[this_idx];
-    //
-    //             // one more in going up
-    //             const below_idx = (y + 1) * (line_length + 1) + x;
-    //             const below = contents[below_idx];
-    //             if (this == '.' and below == 'O') {
-    //                 contents[this_idx] = 'O';
-    //                 contents[below_idx] = '.';
-    //             }
-    //         }
-    //     }
-    //     //
-    // }
 
-    var thing = Field.new(contents, copy);
+    var thingPart1 = Field.new(contents, allocator);
+    thingPart1.roll(1, 0); // north
+    std.debug.print("Part1 {}\n", .{thingPart1.count()});
+    thingPart1.deinit();
+
+    var thing = Field.new(contents, allocator);
+    defer thing.deinit();
+
+    var changedSince: ?FieldChange = try thing.changed(allocator);
     for (0..1000000000) |_| {
         thing.roll(1, 0); // north
         thing.roll(0, 1); // east
         thing.roll(1, 2); // south
         thing.roll(2, 1); // east
-        if (!thing.changed()) {
+        changedSince = try thing.changed(allocator);
+        if (changedSince != null) {
             break;
         }
     }
 
-    std.debug.print("{s}\n", .{thing.contents});
-    // for (0..line_count) |y| {
-    //     for (0..line_length) |x| {
-    //         const this_idx = y * (line_length + 1) + x;
-    //         if (contents[this_idx] == 'O') {
-    //             total += line_count - y;
-    //         }
-    //     }
-    // }
+    if (changedSince) |since| {
+        const itemIndex = since.start + (1000000000 - since.start) % since.iteration;
+        thing.contents = thing.copies.items[itemIndex];
+        std.debug.print("Part2 {}\n", .{thing.count()});
+    }
 
-    std.debug.print("Part1 {}\n", .{thing.count()});
     // std.debug.print("Part2 {}\n", .{total2});
 }
