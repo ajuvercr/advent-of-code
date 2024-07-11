@@ -31,7 +31,7 @@ fn count_springs(springs: []const u8, correction: []const usize, deja_found: usi
         return 0;
     }
 
-    var c = springs[0];
+    const c = springs[0];
 
     var out: usize = 0;
 

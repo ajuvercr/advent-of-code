@@ -12,11 +12,12 @@ pub fn mainImpl(comptime day_f: fn (content: []u8, allocator: std.mem.Allocator)
     }
 
     var file2 = try std.fs.cwd().openFile(inp, .{});
-    const contents = try file2.readToEndAlloc(allocator, 200000);
+    const contents = try file2.readToEndAlloc(allocator, 500000);
     defer allocator.free(contents);
 
-    std.debug.print("\n", .{});
+    std.debug.print("Using input {s}\n", .{inp});
     try day_f(contents, allocator);
+    std.debug.print("\n", .{});
 }
 
 pub const Point = struct {

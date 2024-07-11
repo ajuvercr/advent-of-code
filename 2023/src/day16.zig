@@ -90,7 +90,7 @@ fn sim_light(point: Point, dir: Point, field: *Field(u8), energy_field: *Field(u
 }
 
 fn energized(start: Point, dir: Point, field: *Field(u8), allocator: std.mem.Allocator) !usize {
-    var energized_content = try allocator.alloc(usize, field.contents.len);
+    const energized_content = try allocator.alloc(usize, field.contents.len);
     defer allocator.free(energized_content);
     @memset(energized_content, 0);
 

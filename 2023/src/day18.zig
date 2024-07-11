@@ -34,11 +34,23 @@ const Line = struct {
     }
 
     fn len(self: *const Line) isize {
-        return self.end - self.start + 1;
+        return self.end - self.start;
     }
 
     fn contains(self: *const Line, x: isize) bool {
         return self.start <= x and self.end >= x;
+    }
+
+    pub fn format(
+        self: Line,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = fmt;
+        _ = options;
+
+        try writer.print("Line(y={} {}-{})", .{ self.y, self.start, self.end });
     }
 };
 
@@ -70,7 +82,7 @@ const Inp = struct {
     len: isize,
     fn parse(par: *std.fmt.Parser) Inp {
         const dir_c = par.char().?;
-        var dir = char_to_dir(dir_c);
+        const dir = char_to_dir(dir_c);
         par.pos += 1;
         const amount = par.number().?;
         par.pos += 2;
@@ -95,14 +107,43 @@ const Inp = struct {
     }
 };
 
+fn sorter_x(ctx: void, a: Line, b: Line) bool {
+    _ = ctx;
+    return a.start < b.start;
+}
+
+fn clean(lines: *std.ArrayList(Line)) void {
+    std.sort.heap(Line, lines.items, {}, sorter_x);
+
+    var idx = lines.items.len;
+    while (idx > 1) {
+        idx -= 1;
+        const a = lines.items[idx - 1];
+        if (a.len() <= 0) {
+            _ = lines.orderedRemove(idx - 1);
+            continue;
+        }
+        const b = lines.items[idx];
+        if (b.len() <= 0) {
+            _ = lines.orderedRemove(idx);
+            continue;
+        }
+
+        if (a.end == b.start) {
+            lines.items[idx - 1].end = b.end;
+            _ = lines.orderedRemove(idx);
+        }
+    }
+    if (lines.items.len > 0) {
+        if (lines.items[0].len() <= 0) {
+            _ = lines.orderedRemove(0);
+        }
+    }
+}
+
 fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
     var par = std.fmt.Parser{ .buf = contents };
     var total: isize = 0;
-    var total2: usize = 0;
-    _ = total2;
-
-    var location = Point.new(0, 0);
-    _ = location;
 
     var points = std.ArrayList(Point).init(allocator);
     defer points.deinit();
@@ -121,11 +162,11 @@ fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
         // We have to create a new line
         if (hor.dir.eq(Point.LEFT)) {
             try lines.append(
-                Line.new(next.x, vert.dir.eq(Point.UP), at.x, !from_down, next.y),
+                Line.new(next.x, vert.dir.eq(Point.UP), at.x + 1, !from_down, next.y),
             );
         } else {
             try lines.append(
-                Line.new(at.x, !from_down, next.x, vert.dir.eq(Point.UP), next.y),
+                Line.new(at.x, !from_down, next.x + 1, vert.dir.eq(Point.UP), next.y),
             );
         }
 
@@ -146,70 +187,70 @@ fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
 
             // Let's handle all blocks build by lines
             for (current_lines.items) |seg| {
+                std.debug.print("seg len {} * {} =  {}\n", .{ dy, seg.len(), dy * seg.len() });
                 total += dy * seg.len();
             }
+            std.debug.print("Total: {}\n", .{total});
 
             current_y = incoming.y;
         }
 
-        var contains_end: ?Line = null;
-        var contains_end_idx: ?usize = null;
-        var contains_start: ?Line = null;
-        var contains_start_idx: ?usize = null;
+        std.debug.print("Handling {}\n", .{incoming});
+        var should_add = true;
 
         for (0..current_lines.items.len) |i| {
-            var cl = current_lines.items[i];
+            const cl = current_lines.items[i];
 
-            // I thikn
-            // if (incoming.start > cl.start and incoming.end < cl.end) {
-            //     _ = current_lines.orderedRemove(idx);
-            // }
+            if (incoming.start <= cl.end and incoming.end >= cl.start) {
+                // if (incoming.end == cl.end and incoming.start == cl.start) {
+                //     std.debug.print("Exact match {}\n", .{cl});
+                //     total += cl.len();
+                //     current_lines.items[i].end = cl.start;
+                //     continue;
+                // }
 
-            if (cl.contains(incoming.start)) {
-                contains_start = cl;
-                contains_start_idx = i;
-            }
+                if (incoming.end == cl.end) {
+                    should_add = false;
+                    total += cl.end - incoming.start - 1;
+                    std.debug.print("End got shorter {} (adding {})\n", .{ cl, current_lines.items[i].end - incoming.start - 1 });
+                    current_lines.items[i].end = incoming.start + 1;
+                }
 
-            if (cl.contains(incoming.end)) {
-                contains_end_idx = i;
-                contains_end = cl;
+                if (incoming.start == cl.start) {
+                    should_add = false;
+                    total += incoming.end - 1 + cl.start;
+                    std.debug.print("Start got shorter {} (adding {})\n", .{ cl, incoming.end - 1 + current_lines.items[i].start });
+                    current_lines.items[i].start = incoming.end - 1;
+                }
+
+                if (incoming.start == cl.end - 1) {
+                    std.debug.print("End got longer {}\n", .{cl});
+                    should_add = false;
+                    current_lines.items[i].end = incoming.end;
+                }
+
+                if (incoming.end - 1 == cl.start) {
+                    std.debug.print("Start got longer {}\n", .{cl});
+                    should_add = false;
+                    current_lines.items[i].start = incoming.start;
+                }
             }
         }
 
-        if (contains_end == null or contains_start == null) {
+        if (should_add) {
             try current_lines.append(incoming);
         }
 
-        if (contains_start_idx) |start| {
-            current_lines.items[start].end = incoming.start - 1;
+        std.debug.print(" >>> Preclean\n", .{});
+        for (current_lines.items) |line| {
+            std.debug.print("Y={} {any}\n", .{ current_y, line });
         }
-
-        if (contains_end_idx) |end| {
-            current_lines.items[end].start = incoming.end + 1;
-        }
-
-        var idx_rev = current_lines.items.len;
-        while (idx_rev > 0) {
-            idx_rev -= 1;
-            var cl = current_lines.items[idx_rev];
-            if (cl.len() <= 0) {
-                const out = current_lines.orderedRemove(idx_rev);
-                std.debug.print("Removing {}  len={}\n", .{ out, out.len() });
-            }
-        }
-
+        clean(&current_lines);
+        std.debug.print(" <<< PostClean\n", .{});
         for (current_lines.items) |line| {
             std.debug.print("Y={} {any}\n", .{ current_y, line });
         }
     }
 
-    const dy = lines.getLast().y + 1 - current_y;
-    for (current_lines.items) |seg| {
-        total += dy * seg.len();
-    }
-
-    for (lines.items) |line| {
-        std.debug.print("Part1 {any}\n", .{line});
-    }
     std.debug.print("Part1 {any}\n", .{total});
 }

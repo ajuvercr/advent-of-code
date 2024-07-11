@@ -120,7 +120,7 @@ fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
     var field = Field(u8).init(@constCast(contents), row_length);
 
     const row = start_loc / (row_length + 1);
-    var at = Coord{ start_loc - row * (row_length + 1), row };
+    const at = Coord{ start_loc - row * (row_length + 1), row };
 
     shorts.set(at, 0);
 

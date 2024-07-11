@@ -60,7 +60,7 @@ fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
         index += 1;
     }
 
-    var i = index - 1;
+    var i: usize = index - 1;
     while (i >= 0) : (i -= 1) {
         values[i] = 1;
         for (0..wins[i] + 1) |j| {

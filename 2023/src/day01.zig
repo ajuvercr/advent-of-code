@@ -38,7 +38,7 @@ const n_literals = [_]Literal{
     Literal{ .value = 9, .name = "ine" },
 };
 
-fn parse_spelled(first: u8, parser: *std.fmt.Parser) ?usize {
+fn parse_spelled(first: u21, parser: *std.fmt.Parser) ?usize {
     const lits = switch (first) {
         'o' => o_literals[0..],
         't' => t_literals[0..],

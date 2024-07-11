@@ -31,7 +31,7 @@ fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
     var time_count: usize = 0;
     par.pos += 5;
     spaces(&par);
-    while (par.peek(0) != '\n') {
+    while (par.peek(@as(usize, 0)) != '\n') {
         times[time_count] = par.number().?;
         time_count += 1;
         spaces(&par);

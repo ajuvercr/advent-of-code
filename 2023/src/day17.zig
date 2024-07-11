@@ -101,12 +101,8 @@ fn a_star(field: *Field(u8), dists: [3][]usize, alloc: std.mem.Allocator) !void 
 }
 
 fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
-    var total: usize = 0;
-    _ = total;
-    var total2: usize = 0;
-
     var field = Field(u8).init(@constCast(contents), true, undefined);
-    var dists = [3][]usize{ try allocator.alloc(usize, field.contents.len), try allocator.alloc(usize, field.contents.len), try allocator.alloc(usize, field.contents.len) };
+    const dists = [3][]usize{ try allocator.alloc(usize, field.contents.len), try allocator.alloc(usize, field.contents.len), try allocator.alloc(usize, field.contents.len) };
     for (0..3) |i| {
         @memset(dists[i], 0);
     }
@@ -116,5 +112,4 @@ fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
     std.debug.print("Part1 {}\n", .{dists[2][field.contents.len - 2]});
     std.debug.print("Part1 {}\n", .{dists[1][field.contents.len - 2]});
     std.debug.print("Part1 {}\n", .{dists[0][field.contents.len - 2]});
-    std.debug.print("Part2 {}\n", .{total2});
 }

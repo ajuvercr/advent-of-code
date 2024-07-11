@@ -23,7 +23,7 @@ fn index_with_dir(index: isize, dir: [2]isize, line_length: isize, rows: isize) 
     return @bitCast(out);
 }
 
-fn is_digit(char: u8) bool {
+fn is_digit(char: u21) bool {
     return char >= '0' and char <= '9';
 }
 

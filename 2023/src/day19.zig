@@ -66,8 +66,8 @@ const RInput = struct {
     }
 
     fn split(self: *RInput, option: *const Option) ?RInput {
-        var sidx: usize = 1;
-        var oidx: usize = 0;
+        const sidx: usize = 1;
+        const oidx: usize = 0;
 
         switch (option.field) {
             'x' => {
@@ -305,8 +305,6 @@ fn calc_options(current: []const u8, map: std.StringHashMap(Rule), inpt: *RInput
 fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
     var par = std.fmt.Parser{ .buf = contents };
     var total: usize = 0;
-    var total2: usize = 0;
-    _ = total2;
 
     var map = std.StringHashMap(Rule).init(allocator);
     while (true) {
