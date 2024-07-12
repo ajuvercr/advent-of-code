@@ -1,4 +1,5 @@
 const std = @import("std");
+const Parser = @import("./parser.zig").Parser;
 const utils = @import("./utils.zig");
 
 pub fn main() !void {
@@ -91,7 +92,7 @@ const Square = struct {
 };
 
 fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
-    var par = std.fmt.Parser{ .buf = contents };
+    var par = Parser.init(contents);
     var total: usize = 0;
     var total2: usize = 0;
 

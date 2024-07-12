@@ -1,4 +1,5 @@
 const std = @import("std");
+const Parser = @import("./parser.zig").Parser;
 const expect = std.testing.expect;
 const utils = @import("./utils.zig");
 
@@ -56,7 +57,7 @@ fn count_springs(springs: []const u8, correction: []const usize, deja_found: usi
 }
 
 fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
-    var par = std.fmt.Parser{ .buf = contents };
+    var par = Parser.init(contents);
 
     var total: usize = 0;
     var total2: usize = 0;
@@ -80,7 +81,7 @@ fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
 
         while (par.peek(0) != '\n') {
             par.pos += 1;
-            try corrections.append(par.number().?);
+            try corrections.append(par.number(usize).?);
         }
 
         for (0..5) |_| {

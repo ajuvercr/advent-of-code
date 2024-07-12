@@ -81,6 +81,7 @@ fn sim_light(point: Point, dir: Point, field: *Field(u8), energy_field: *Field(u
                 }
             },
             else => {
+                std.debug.print("Unexpected character {c}\n", .{c});
                 unreachable;
             },
         }

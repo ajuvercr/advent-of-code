@@ -141,6 +141,4 @@ fn day(c: []const u8, allocator: std.mem.Allocator) anyerror!void {
         thing.contents = thing.copies.items[itemIndex];
         std.debug.print("Part2 {}\n", .{thing.count()});
     }
-
-    // std.debug.print("Part2 {}\n", .{total2});
 }

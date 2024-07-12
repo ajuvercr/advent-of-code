@@ -1,4 +1,5 @@
 const std = @import("std");
+const Parser = @import("./parser.zig").Parser;
 const utils = @import("./utils.zig");
 
 pub fn main() !void {
@@ -46,7 +47,7 @@ fn calc_next(items: *std.ArrayList(isize), last: isize, back: bool) !isize {
 }
 
 pub fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
-    var par = std.fmt.Parser{ .buf = contents };
+    var par = Parser.init(contents);
 
     var total: i64 = 0;
     var total2: i64 = 0;
@@ -62,9 +63,9 @@ pub fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
             var num: isize = undefined;
             if (par.peek(0) == '-') {
                 par.pos += 1;
-                num = -1 * @as(isize, @intCast(par.number().?));
+                num = -1 * par.number(isize).?;
             } else {
-                num = @as(isize, @intCast(par.number().?));
+                num = par.number(isize).?;
             }
             try nums.append(num);
             if (par.char() != ' ') break;

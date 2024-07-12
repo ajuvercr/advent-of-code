@@ -1,11 +1,12 @@
 const std = @import("std");
+const Parser = @import("./parser.zig").Parser;
 const utils = @import("./utils.zig");
 
 pub fn main() !void {
     try utils.mainImpl(day);
 }
 
-fn index(par: *std.fmt.Parser, starts: *std.ArrayList(usize), ends: *std.ArrayList(usize)) !usize {
+fn index(par: *Parser, starts: *std.ArrayList(usize), ends: *std.ArrayList(usize)) !usize {
     const a: usize = par.char().? - 'A';
     const b: usize = par.char().? - 'A';
     const c: usize = par.char().? - 'A';
@@ -49,7 +50,7 @@ pub fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
     var starts = std.ArrayList(usize).init(allocator);
     var ends = std.ArrayList(usize).init(allocator);
 
-    var par = std.fmt.Parser{ .buf = contents };
+    var par = Parser.init(contents);
     const dir = par.until('\n');
     par.pos += 2;
 

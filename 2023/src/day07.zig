@@ -1,4 +1,5 @@
 const std = @import("std");
+const Parser = @import("./parser.zig").Parser;
 const utils = @import("./utils.zig");
 
 pub fn main() !void {
@@ -165,7 +166,7 @@ fn sortBy(ctx: void, a: Hand, b: Hand) bool {
 }
 
 fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
-    var par = std.fmt.Parser{ .buf = contents };
+    var par = Parser.init(contents);
 
     var hands1 = std.ArrayList(Hand).init(allocator);
     var hands2 = std.ArrayList(Hand).init(allocator);
@@ -173,7 +174,7 @@ fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
     while (par.peek(0) != undefined) {
         const cards = par.buf[par.pos .. par.pos + 5];
         par.pos += 6;
-        const bid = par.number().?;
+        const bid = par.number(usize).?;
 
         try hands1.append(Hand.new(cards, bid, true));
         try hands2.append(Hand.new(cards, bid, false));

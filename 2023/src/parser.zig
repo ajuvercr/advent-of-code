@@ -34,7 +34,7 @@ pub const Parser = struct {
         return self.buf[start..at];
     }
 
-    pub fn number(self: *Parser, comptime T: type) ?usize {
+    pub fn number(self: *Parser, comptime T: type) ?T {
         const start = self.pos;
         var at = self.pos;
         while (at < self.buf.len and self.buf[at] >= '0' and self.buf[at] <= '9') {

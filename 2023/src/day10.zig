@@ -135,7 +135,6 @@ fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
         const l = field.get(dir);
 
         if (l == '-' or l == 'J' or l == '7') {
-            std.debug.print("maybe {c} {} {}\n", .{ l, -1, 0 });
             try_dir(dir, at, &field, &shorts);
         }
     }
@@ -145,7 +144,6 @@ fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
         const l = field.get(dir);
 
         if (l == '|' or l == 'L' or l == 'J') {
-            std.debug.print("maybe {c} {} {}\n", .{ l, 0, -1 });
             try_dir(dir, at, &field, &shorts);
         }
     }
@@ -155,7 +153,6 @@ fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
         const l = field.get(dir);
 
         if (l == '-' or l == 'L' or l == 'F') {
-            std.debug.print("maybe {c} {} {}\n", .{ l, 1, 0 });
             try_dir(dir, at, &field, &shorts);
         }
     }
@@ -166,7 +163,6 @@ fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
         const l = field.get(dir);
 
         if (l == '|' or l == '7' or l == 'F') {
-            std.debug.print("maybe {c} {} {}\n", .{ l, 0, 1 });
             try_dir(dir, at, &field, &shorts);
         }
     }
