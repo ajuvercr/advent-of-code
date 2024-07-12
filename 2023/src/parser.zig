@@ -24,6 +24,16 @@ pub const Parser = struct {
         return null;
     }
 
+    pub fn until(self: *Parser, until_char: u8) []const u8 {
+        const start = self.pos;
+        var at = self.pos;
+        while (at < self.buf.len and self.buf[at] != until_char) {
+            at += 1;
+        }
+        self.pos = at;
+        return self.buf[start..at];
+    }
+
     pub fn number(self: *Parser, comptime T: type) ?usize {
         const start = self.pos;
         var at = self.pos;

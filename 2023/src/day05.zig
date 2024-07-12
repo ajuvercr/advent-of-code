@@ -1,4 +1,5 @@
 const std = @import("std");
+const Parser = @import("./parser.zig").Parser;
 const utils = @import("./utils.zig");
 
 pub fn main() !void {
@@ -130,19 +131,19 @@ const Part2 = struct {
     }
 };
 
-fn parse_range(par: *std.fmt.Parser) Range {
-    const dest = par.number().?;
+fn parse_range(par: *Parser) Range {
+    const dest = par.number(usize).?;
     par.pos += 1;
-    const start = par.number().?;
+    const start = par.number(usize).?;
     par.pos += 1;
-    const len = par.number().?;
+    const len = par.number(usize).?;
     par.pos += 1;
 
     return Range{ .dest = dest, .start = start, .len = len };
 }
 
 fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
-    var par = std.fmt.Parser{ .buf = contents };
+    var par = Parser.init(contents);
 
     var part1 = std.mem.zeroes(Part1);
 
@@ -151,11 +152,11 @@ fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
     par.pos += 6;
     while (par.peek(0) != '\n') {
         par.pos += 1;
-        const a = par.number().?;
+        const a = par.number(usize).?;
         part1.add_seed(a);
 
         par.pos += 1;
-        const b = par.number().?;
+        const b = par.number(usize).?;
         part1.add_seed(b);
 
         try seeds.append(SeedRange{ .start = a, .len = b, .mapped = false });

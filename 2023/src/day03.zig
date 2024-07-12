@@ -1,4 +1,5 @@
 const std = @import("std");
+const Parser = @import("./parser.zig").Parser;
 const utils = @import("./utils.zig");
 
 pub fn main() !void {
@@ -39,9 +40,9 @@ fn next_gear(gears: *[500]usize, gear: usize) usize {
     unreachable;
 }
 
-fn parse_num_ret(parser: *std.fmt.Parser) usize {
+fn parse_num_ret(parser: *Parser) usize {
     const at = parser.pos;
-    const out = parser.number() orelse unreachable;
+    const out = parser.number(usize) orelse unreachable;
     parser.pos = at;
     return out;
 }
@@ -53,7 +54,7 @@ fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
         if (c == '\n') rows += 1;
     }
 
-    var par = std.fmt.Parser{ .buf = contents };
+    var par = Parser.init(contents);
     var total: usize = 0;
 
     var gearsIdx = std.mem.zeroes([500]usize);
@@ -95,9 +96,9 @@ fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
             }
 
             if (valid) {
-                total += par.number().?;
+                total += par.number(usize).?;
             } else {
-                _ = par.number().?;
+                _ = par.number(usize).?;
             }
         }
     }

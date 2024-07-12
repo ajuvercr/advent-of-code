@@ -1,11 +1,12 @@
 const std = @import("std");
+const Parser = @import("./parser.zig").Parser;
 const utils = @import("./utils.zig");
 
 pub fn main() !void {
     try utils.mainImpl(day);
 }
 
-fn spaces(par: *std.fmt.Parser) void {
+fn spaces(par: *Parser) void {
     while (par.peek(0) == ' ') {
         par.pos += 1;
     }
@@ -13,7 +14,7 @@ fn spaces(par: *std.fmt.Parser) void {
 
 fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
     _ = allocator;
-    var par = std.fmt.Parser{ .buf = contents };
+    var par = Parser.init(contents);
     var total: usize = 0;
 
     var values = std.mem.zeroes([215]usize);
@@ -27,19 +28,19 @@ fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
         var yours_idx: usize = 0;
         par.pos += 4;
         spaces(&par);
-        const id = par.number().?;
+        const id = par.number(usize).?;
         _ = id;
         par.pos += 1;
         spaces(&par);
         while (par.peek(0) != '|') {
-            winning[winning_idx] = par.number().?;
+            winning[winning_idx] = par.number(usize).?;
             spaces(&par);
             winning_idx += 1;
         }
         par.pos += 1;
         spaces(&par);
         while (par.peek(0) != '\n') {
-            yours[yours_idx] = par.number().?;
+            yours[yours_idx] = par.number(usize).?;
             spaces(&par);
             yours_idx += 1;
         }
