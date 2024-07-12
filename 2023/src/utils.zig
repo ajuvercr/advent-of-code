@@ -87,16 +87,17 @@ pub fn Field(comptime T: type) type {
         }
 
         pub fn get(self: Self, x: isize, y: isize) ?T {
+            if (x >= self.row_length or x < 0 or y < 0) return null;
             const idx = self._idx(x, y);
-            if (x >= self.row_length or x < 0) return undefined;
             if (idx >= 0 and idx < self.contents.len) {
                 return self.contents[@bitCast(idx)];
             }
-            return undefined;
+            return null;
         }
 
         pub fn get_p(self: Self, point: Point) ?T {
-            return self.get(point.x, point.y);
+            const v = self.get(point.x, point.y);
+            return v;
         }
 
         pub fn set(self: Self, x: isize, y: isize, item: T) bool {

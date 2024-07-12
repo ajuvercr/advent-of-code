@@ -112,6 +112,7 @@ fn energized(start: Point, dir: Point, field: *Field(u8), allocator: std.mem.All
 
 fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
     var field = Field(u8).init(@constCast(contents), true, undefined);
+
     var total2: usize = 0;
 
     const col_length = field.col_length();
