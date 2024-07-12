@@ -1,4 +1,5 @@
 const std = @import("std");
+const Parser = @import("./parser.zig").Parser;
 const utils = @import("./utils.zig");
 const Point = utils.Point;
 const Field = utils.Field;
@@ -80,18 +81,18 @@ fn sorter(ctx: void, a: Line, b: Line) bool {
 const Inp = struct {
     dir: Point,
     len: isize,
-    fn parse(par: *std.fmt.Parser) Inp {
+    fn parse(par: *Parser) Inp {
         const dir_c = par.char().?;
         const dir = char_to_dir(dir_c);
         par.pos += 1;
-        const amount = par.number().?;
+        const amount = par.number(isize).?;
         par.pos += 2;
         const color = par.until(')');
         _ = color;
         par.pos += 2;
         return Inp{
             .dir = dir,
-            .len = @bitCast(amount),
+            .len = amount,
         };
     }
 
@@ -142,7 +143,7 @@ fn clean(lines: *std.ArrayList(Line)) void {
 }
 
 fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
-    var par = std.fmt.Parser{ .buf = contents };
+    var par = Parser.init(contents);
     var total: isize = 0;
 
     var points = std.ArrayList(Point).init(allocator);

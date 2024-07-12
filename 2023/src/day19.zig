@@ -1,4 +1,5 @@
 const std = @import("std");
+const Parser = @import("./parser.zig").Parser;
 const utils = @import("./utils.zig");
 
 pub fn main() !void {
@@ -141,16 +142,16 @@ const Input = struct {
         return self.x + self.m + self.a + self.s;
     }
 
-    fn parse(par: *std.fmt.Parser) ?Input {
+    fn parse(par: *Parser) ?Input {
         if (par.peek(0) orelse '\n' == '\n') return null;
         par.pos += 3;
-        const x = par.number().?;
+        const x = par.number(usize).?;
         par.pos += 3;
-        const m = par.number().?;
+        const m = par.number(usize).?;
         par.pos += 3;
-        const a = par.number().?;
+        const a = par.number(usize).?;
         par.pos += 3;
-        const s = par.number().?;
+        const s = par.number(usize).?;
         par.pos += 1;
         return Input{
             .x = x,
@@ -164,7 +165,7 @@ const Input = struct {
 const Operator = enum {
     Lt,
     Gt,
-    fn parse(par: *std.fmt.Parser) Operator {
+    fn parse(par: *Parser) Operator {
         const c = par.char().?;
         return switch (c) {
             '<' => Operator.Lt,
@@ -179,13 +180,13 @@ const Option = struct {
     value: usize,
     op: Operator,
     target: []const u8,
-    fn parse(par: *std.fmt.Parser) ?Option {
+    fn parse(par: *Parser) ?Option {
         const ending = par.peek(1);
         if (ending != '<' and ending != '>') return null;
 
         const field = par.char().?;
         const op = Operator.parse(par);
-        const value = par.number().?;
+        const value = par.number(usize).?;
         par.pos += 1;
         const target = par.until(',');
         return Option{
@@ -229,7 +230,7 @@ const Rule = struct {
     name: []const u8,
     constraints: std.ArrayList(Option),
     default: []const u8,
-    fn parse(par: *std.fmt.Parser, allocator: std.mem.Allocator) !?Rule {
+    fn parse(par: *Parser, allocator: std.mem.Allocator) !?Rule {
         if (par.peek(0) orelse '\n' == '\n') return null;
         var constraints = std.ArrayList(Option).init(allocator);
         const name = par.until('{');
@@ -303,7 +304,7 @@ fn calc_options(current: []const u8, map: std.StringHashMap(Rule), inpt: *RInput
 }
 
 fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
-    var par = std.fmt.Parser{ .buf = contents };
+    var par = Parser.init(contents);
     var total: usize = 0;
 
     var map = std.StringHashMap(Rule).init(allocator);
