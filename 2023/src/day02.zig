@@ -1,4 +1,5 @@
 const std = @import("std");
+const Parser = @import("./parser.zig").Parser;
 const utils = @import("./utils.zig");
 
 pub fn main() !void {
@@ -18,7 +19,7 @@ const Ball = enum {
     }
 };
 
-fn parse_color(par: *std.fmt.Parser) ?Ball {
+fn parse_color(par: *Parser) ?Ball {
     if (par.char()) |c| {
         switch (c) {
             'b' => {
@@ -71,18 +72,18 @@ fn maybeSet(val: *usize, amount: usize) void {
 
 fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
     _ = allocator;
-    var par = std.fmt.Parser{ .buf = contents };
+    var par = Parser.init(contents);
     var total: usize = 0;
     var total2: usize = 0;
 
     while (par.peek(0) != undefined) : (par.pos += 1) {
         var counts = Counts{ .minGreen = 0, .minRed = 0, .minBlue = 0 };
         par.pos += 5;
-        const id = par.number().?;
+        const id = par.number(usize).?;
 
         while (par.peek(0) orelse '\n' != '\n') {
             par.pos += 2;
-            const amount = par.number().?;
+            const amount = par.number(usize).?;
             par.pos += 1;
             const col = parse_color(&par).?;
 

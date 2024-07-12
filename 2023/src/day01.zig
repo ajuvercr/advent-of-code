@@ -1,4 +1,5 @@
 const std = @import("std");
+const Parser = @import("./parser.zig").Parser;
 const expect = std.testing.expect;
 const utils = @import("./utils.zig");
 
@@ -38,7 +39,7 @@ const n_literals = [_]Literal{
     Literal{ .value = 9, .name = "ine" },
 };
 
-fn parse_spelled(first: u21, parser: *std.fmt.Parser) ?usize {
+fn parse_spelled(first: u21, parser: *Parser) ?usize {
     const lits = switch (first) {
         'o' => o_literals[0..],
         't' => t_literals[0..],
@@ -88,7 +89,7 @@ const Numbers = struct {
 
 fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
     _ = allocator;
-    var par = std.fmt.Parser{ .buf = contents };
+    var par = Parser.init(contents);
     var total: usize = 0;
     var total2: usize = 0;
 
