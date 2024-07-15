@@ -2,6 +2,7 @@ const std = @import("std");
 const utils = @import("./utils.zig");
 const Field = utils.Field;
 const Point = utils.Point;
+const Points = Point.Points;
 
 pub fn main() !void {
     try utils.mainImpl(day);
@@ -14,22 +15,14 @@ const Status = struct {
     dist: usize,
 
     // Previous dir
-    from: utils.Point,
+    from: usize,
     // Straigh count
     straight: usize,
 };
 
 fn orderer(ctx: void, a: Status, b: Status) std.math.Order {
     _ = ctx;
-    // if (a.dist == b.dist) {
-    //     if (a.straight > b.straight)
-    //         return std.math.Order.lt;
-    //     return std.math.Order.gt;
-    // }
-    // if (a.dist < b.dist)
-    //     return std.math.Order.lt;
-    //
-    // return std.math.Order.lt;
+
     if (a.point.eq(b.point)) {
         if (a.dist < b.dist)
             return std.math.Order.lt;
@@ -53,10 +46,12 @@ fn orderer(ctx: void, a: Status, b: Status) std.math.Order {
     return std.math.Order.eq;
 }
 
-fn a_star(field: *Field(u8), dists: [3][]usize, alloc: std.mem.Allocator) !void {
+fn a_star(field: *Field(u8), dists: [4][][]usize, alloc: std.mem.Allocator, minLen: usize, maxLen: usize) !void {
     var queue = std.PriorityDequeue(Status, void, orderer).init(alloc, {});
+    defer queue.deinit();
+
     try queue.add(Status{
-        .from = Point.new(0, 0),
+        .from = 5,
         .straight = 0,
         .dist = 0,
         .point = Point.new(0, 0),
@@ -64,52 +59,108 @@ fn a_star(field: *Field(u8), dists: [3][]usize, alloc: std.mem.Allocator) !void 
 
     while (queue.len > 0) {
         const status = queue.removeMin();
-        // const l: usize = @bitCast(field._idx(status.point.x, status.point.y));
-        // _ = l;
-        // const cb = dists[status.straight][l];
-        // if (cb != 0 and cb < status.dist) continue;
+        const this_idx: usize = @bitCast(field._idx(status.point.x, status.point.y));
 
-        for ([_]Point{ Point.UP, Point.DOWN, Point.RIGHT, Point.LEFT }) |dir| {
-            if (dir.x * -1 == status.from.x and dir.y * -1 == status.from.y) continue;
+        if (status.straight >= minLen) {
+            if (dists[status.from][status.straight - minLen][this_idx] <= status.dist) continue;
+            // for (minLen..status.straight + 1) |i| {
+            dists[status.from][status.straight - minLen][this_idx] = status.dist;
+            // }
+        }
+        // std.debug.print("Handling {any}\n", .{status});
 
-            var straight: usize = 0;
-            if (status.from.eq(dir)) {
-                straight = status.straight + 1;
-                if (straight >= 3) continue;
-            }
+        for (0..4) |dir_idx| {
+            const dir = Points[@as(usize, dir_idx)];
+            // You cannot go back
+            if ((dir_idx + 2) % 4 == status.from) continue;
 
-            const target = status.point.add(dir);
-            if (field.get_p(target)) |c| {
-                const dist = @as(usize, c - '0') + status.dist;
-                const idx: usize = @bitCast(field._idx(target.x, target.y));
+            // If it is the same direction, add straigh 1
+            if (status.from == 5 or status.from == dir_idx) {
+                const straight = status.straight + 1;
+                if (straight >= maxLen) {
+                    continue;
+                }
+                const target = status.point.add(dir);
+                if (field.get_p(target)) |c| {
+                    const dist = @as(usize, c - '0') + status.dist;
 
-                for (straight..3) |i| {
-                    if (dists[i][idx] == 0 or dists[i][idx] > dist) {
-                        dists[i][idx] = dist;
+                    try queue.add(Status{
+                        .from = dir_idx,
+                        .straight = straight,
+                        .dist = dist,
+                        .point = target,
+                    });
+                }
+            } else {
+                // Do min dist
 
-                        try queue.add(Status{
-                            .from = dir,
-                            .straight = i,
-                            .dist = dist,
-                            .point = target,
-                        });
+                var target = status.point;
+                var dist = status.dist;
+                var good = true;
+                var straight: usize = 0;
+
+                for (0..minLen) |i| {
+                    _ = i;
+                    straight += 1;
+                    target = target.add(dir);
+                    if (field.get_p(target)) |c| {
+                        dist += @as(usize, c - '0');
+                    } else {
+                        good = false;
+                        break;
                     }
+                }
+
+                if (good) {
+                    try queue.add(Status{
+                        .from = dir_idx,
+                        .straight = straight,
+                        .dist = dist,
+                        .point = target,
+                    });
                 }
             }
         }
     }
 }
 
-fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
+fn part(contents: []const u8, allocator: std.mem.Allocator, min_l: usize, max_l: usize) !usize {
     var field = Field(u8).init(@constCast(contents), true, undefined);
-    const dists = [3][]usize{ try allocator.alloc(usize, field.contents.len), try allocator.alloc(usize, field.contents.len), try allocator.alloc(usize, field.contents.len) };
-    for (0..3) |i| {
-        @memset(dists[i], 0);
-    }
-    try a_star(&field, dists, allocator);
+    var dists: [4][][]usize = .{undefined} ** 4;
 
-    // to high : 675
-    std.debug.print("Part1 {}\n", .{dists[2][field.contents.len - 2]});
-    std.debug.print("Part1 {}\n", .{dists[1][field.contents.len - 2]});
-    std.debug.print("Part1 {}\n", .{dists[0][field.contents.len - 2]});
+    const diff = max_l - min_l;
+    for (0..4) |i| {
+        dists[i] = try allocator.alloc([]usize, diff);
+        for (0..diff) |j| {
+            dists[i][j] = try allocator.alloc(usize, contents.len);
+            @memset(dists[i][j], std.math.maxInt(usize));
+        }
+    }
+
+    defer {
+        for (0..4) |i| {
+            for (0..diff) |j| {
+                allocator.free(dists[i][j]);
+            }
+            allocator.free(dists[i]);
+        }
+    }
+
+    try a_star(&field, dists, allocator, min_l, max_l);
+
+    const idx: usize = @intCast(field._idx(field.row_length - 1, field.col_length() - 1));
+
+    var min: usize = std.math.maxInt(usize);
+    for (0..4) |i| {
+        for (0..diff) |j| {
+            min = @min(min, dists[i][j][idx]);
+        }
+    }
+
+    return min;
+}
+
+fn day(contents: []const u8, allocator: std.mem.Allocator) anyerror!void {
+    std.debug.print("Part 1: {}\n", .{try part(contents, allocator, 1, 4)});
+    std.debug.print("Part 2: {}\n", .{try part(contents, allocator, 4, 11)});
 }

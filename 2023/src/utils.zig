@@ -26,6 +26,8 @@ pub const Point = struct {
     pub const LEFT = Point.new(-1, 0);
     pub const RIGHT = Point.new(1, 0);
 
+    pub const Points: [4]Point = .{ Point.UP, Point.LEFT, Point.DOWN, Point.RIGHT };
+
     x: isize,
     y: isize,
 
@@ -56,7 +58,6 @@ pub fn Field(comptime T: type) type {
         const Self = @This();
 
         pub fn init(contents: []T, has_newline: bool, row_length: ?isize) Self {
-            var rl: usize = 0;
             if (row_length) |len| {
                 return Self{
                     .contents = contents,
@@ -64,16 +65,18 @@ pub fn Field(comptime T: type) type {
                     .row_length = len,
                 };
             } else {
+                var rl: usize = 0;
                 if (T != u8) {
                     @panic("Can only find row length for character based fields");
                 }
                 while (contents[rl] != '\n') {
                     rl += 1;
                 }
+
                 return Self{
                     .contents = contents,
                     .has_newline = has_newline,
-                    .row_length = @bitCast(rl),
+                    .row_length = @intCast(rl),
                 };
             }
         }
@@ -87,7 +90,7 @@ pub fn Field(comptime T: type) type {
         }
 
         pub fn get(self: Self, x: isize, y: isize) ?T {
-            if (x >= self.row_length or x < 0 or y < 0) return null;
+            if (x >= self.row_length or x < 0 or y < 0 or y >= self.col_length()) return null;
             const idx = self._idx(x, y);
             if (idx >= 0 and idx < self.contents.len) {
                 return self.contents[@bitCast(idx)];
