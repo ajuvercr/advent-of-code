@@ -101,4 +101,5 @@ pub fn main() !void {
     const parsed = try one_of.parser.parse(&allocator, &reader);
 
     std.debug.print("Parsed {s}", .{parsed orelse ""});
+    std.debug.print("-2 % 4 = {}", .{@mod(-2, 4)});
 }

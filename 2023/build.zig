@@ -8,6 +8,8 @@ fn add_exec(b: *std.Build, name: []const u8, path: []const u8, msg: []const u8, 
         .root_source_file = b.path(path),
         .target = target,
         .optimize = optimize,
+        .error_tracing = true,
+        .unwind_tables = true,
     });
     b.installArtifact(exe);
 
@@ -34,6 +36,7 @@ pub fn build(b: *std.Build) !void {
     // Standard optimization options allow the person running `zig build` to select
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
     // set a preferred release mode, allowing the user to decide how to optimize.
+    // const optimize = b.standardOptimizeOption(.{ .preferred_optimize_mode = std.builtin.OptimizeMode.ReleaseFast });
     const optimize = b.standardOptimizeOption(.{});
 
     var buffer: [1000000]u8 = undefined;

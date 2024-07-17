@@ -89,6 +89,15 @@ pub fn Field(comptime T: type) type {
             }
         }
 
+        pub fn get_wrap(self: Self, x: isize, y: isize) ?T {
+            return self.get(@mod(x, self.row_length), @mod(y, self.col_length()));
+        }
+
+        pub fn get_p_wrap(self: Self, point: Point) ?T {
+            const v = self.get_wrap(point.x, point.y);
+            return v;
+        }
+
         pub fn get(self: Self, x: isize, y: isize) ?T {
             if (x >= self.row_length or x < 0 or y < 0 or y >= self.col_length()) return null;
             const idx = self._idx(x, y);
