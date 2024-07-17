@@ -14,13 +14,19 @@ pub fn main() !void {
 const Data = struct {
     field: Field(u8),
     secondField: Field(u8),
+    countField: Field(usize),
     copy: []u8,
     w: usize,
     h: usize,
+    steps: usize,
 
     fn init(contents: []u8, allocator: std.mem.Allocator) !Data {
-        var field = Field(u8).init(@constCast(contents), true, undefined);
+        var field = Field(u8).init(contents, true, undefined);
 
+        const countFieldBuffer = try allocator.alloc(usize, contents.len);
+        @memset(countFieldBuffer, std.math.maxInt(usize));
+
+        const countField = Field(usize).init(countFieldBuffer, true, field.row_length);
         const second = try allocator.alloc(u8, contents.len);
         @memcpy(second, contents);
         const secondField = Field(u8).init(second, true, undefined);
@@ -41,14 +47,52 @@ const Data = struct {
             .field = field,
             .secondField = secondField,
             .copy = copy,
+            .countField = countField,
             .w = w,
             .h = h,
+            .steps = 0,
         };
     }
 
     fn set(self: *Data, pos: Point) void {
         @memcpy(self.field.contents, self.copy);
         _ = self.field.set_p(pos, 'S');
+    }
+
+    fn set_counts(self: *Data) void {
+        for (0..self.w) |i| {
+            for (0..self.h) |j| {
+                const x: isize = @intCast(i);
+                const y: isize = @intCast(j);
+                if (self.field.get(x, y)) |c| {
+                    if (c == 'S') {
+                        if (self.countField.get(x, y)) |v| {
+                            if (v > self.steps) {
+                                _ = self.countField.set(x, y, self.steps);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn print_counts(self: *const Data) void {
+        for (0..self.w) |i| {
+            for (0..self.h) |j| {
+                const y: isize = @intCast(i);
+                const x: isize = @intCast(j);
+
+                if (self.countField.get(x, y)) |v| {
+                    if (v > 1000) {
+                        std.debug.print(" #  ", .{});
+                    } else {
+                        std.debug.print("{: ^3} ", .{v});
+                    }
+                }
+            }
+            std.debug.print("\n", .{});
+        }
     }
 
     fn step(self: *Data) void {
@@ -71,6 +115,8 @@ const Data = struct {
                 }
             }
         }
+
+        self.steps += 1;
 
         // swap things
         const tmp = self.secondField.contents;
@@ -95,78 +141,6 @@ const Data = struct {
     }
 };
 
-const Cached = struct {
-    n: []usize,
-    s: []usize,
-    e: []usize,
-    w: []usize,
-    ne: []usize,
-    nw: []usize,
-    se: []usize,
-    sw: []usize,
-
-    width: usize,
-
-    fn go_dia(self: *const Cached, togo: usize, cached: []usize) usize {
-        // std.debug.print("Dia togo {}\n", .{togo});
-        const tileDiff = self.width + self.width;
-
-        const times = togo / tileDiff;
-        const extra = @mod(togo, tileDiff);
-
-        return cached[extra] + cached[tileDiff - 1] * times;
-    }
-
-    fn go_ne(self: *const Cached, togo: usize) usize {
-        return self.go_dia(togo, self.ne);
-    }
-
-    fn go_nw(self: *const Cached, togo: usize) usize {
-        return self.go_dia(togo, self.nw);
-    }
-
-    fn go_se(self: *const Cached, togo: usize) usize {
-        return self.go_dia(togo, self.se);
-    }
-
-    fn go_sw(self: *const Cached, togo: usize) usize {
-        return self.go_dia(togo, self.sw);
-    }
-
-    fn go_straight(self: *const Cached, t: usize, this: []usize, left: []usize, right: []usize) usize {
-        var togo = t;
-        var out: usize = 0;
-        while (togo > self.width) {
-            out += this[@min(togo, this.len - 1 - @mod(togo, 2) - 1)];
-
-            if (togo > self.width + 1 + self.width / 2) {
-                out += self.go_dia(togo - 1 - self.width - self.width / 2, left);
-                out += self.go_dia(togo - 1 - self.width - self.width / 2, right);
-            }
-
-            togo -= self.width;
-        }
-
-        return out + this[togo];
-    }
-
-    fn go_n(self: *const Cached, togo: usize) usize {
-        return self.go_straight(togo, self.n, self.ne, self.nw);
-    }
-
-    fn go_s(self: *const Cached, togo: usize) usize {
-        return self.go_straight(togo, self.s, self.se, self.sw);
-    }
-
-    fn go_w(self: *const Cached, togo: usize) usize {
-        return self.go_straight(togo, self.w, self.nw, self.sw);
-    }
-
-    fn go_e(self: *const Cached, togo: usize) usize {
-        return self.go_straight(togo, self.e, self.ne, self.se);
-    }
-};
-
 fn getPoint(data: *const Data, comptime x_f: fn (usize) usize, comptime y_f: fn (usize) usize) Point {
     return Point{
         .x = @intCast(x_f(data.w)),
@@ -182,6 +156,7 @@ fn part1(data: *Data, count: usize) usize {
 
     for (0..count) |z| {
         _ = z;
+        data.set_counts();
         data.step();
         // std.debug.print("Step {}\n{s}\n", .{ z, data.field.contents });
     }
@@ -189,85 +164,46 @@ fn part1(data: *Data, count: usize) usize {
     return data.count();
 }
 
-fn zero(count: usize) usize {
-    _ = count;
-    return 0;
-}
-fn full(count: usize) usize {
-    return count - 1;
-}
-fn halve(count: usize) usize {
-    return count / 2;
-}
+fn day(contents: []u8, allocator: std.mem.Allocator) anyerror!void {
+    var data = try Data.init(contents, allocator);
+    std.debug.print("Part 1: {}\n", .{part1(&data, 10)});
 
-fn fill(data: *Data, start: Point, target: []usize) void {
-    data.set(start);
-
-    for (0..target.len) |z| {
-        target[z] = data.count();
-        // std.debug.print("Step {}\n{s}\n", .{ z, data.field.contents });
+    for (0..200) |i| {
+        _ = i;
+        data.set_counts();
         data.step();
     }
-}
 
-fn day(contents: []u8, allocator: std.mem.Allocator) anyerror!void {
-    // std.time.sleep(10);
-    // const safeContents = try allocator.alloc(u8, contents.len);
-    // @memcpy(safeContents, contents);
-    var data = try Data.init(contents, allocator);
-    std.debug.print("Part 1: {}\n", .{part1(&data, 100)});
-
-    // Pre calculate things
-    std.debug.print("North\n", .{});
-    const north: []usize = try allocator.alloc(usize, data.w + data.h);
-    fill(&data, getPoint(&data, halve, full), north);
-
-    std.debug.print("South\n", .{});
-    const south: []usize = try allocator.alloc(usize, data.w + data.h);
-    fill(&data, getPoint(&data, halve, zero), south);
-
-    std.debug.print("West\n", .{});
-    const west: []usize = try allocator.alloc(usize, data.w + data.h);
-    fill(&data, getPoint(&data, full, halve), west);
-
-    std.debug.print("East\n", .{});
-    const east: []usize = try allocator.alloc(usize, data.w + data.h);
-    fill(&data, getPoint(&data, zero, halve), east);
-
-    std.debug.print("SouthEast\n", .{});
-    const se: []usize = try allocator.alloc(usize, data.w + data.h);
-    fill(&data, getPoint(&data, zero, zero), se);
-
-    std.debug.print("SouthWest\n", .{});
-    const sw: []usize = try allocator.alloc(usize, data.w + data.h);
-    fill(&data, getPoint(&data, full, zero), sw);
-
-    std.debug.print("NW\n", .{});
-    const nw: []usize = try allocator.alloc(usize, data.w + data.h);
-    fill(&data, getPoint(&data, full, full), nw);
-
-    std.debug.print("NE\n", .{});
-    const ne: []usize = try allocator.alloc(usize, data.w + data.h);
-    fill(&data, getPoint(&data, zero, full), ne);
-
-    const cached = Cached{
-        .n = north,
-        .s = south,
-        .w = west,
-        .e = east,
-        .ne = ne,
-        .nw = nw,
-        .se = se,
-        .sw = sw,
-        .width = data.w,
-    };
-
-    const straight = cached.width / 2 + 1;
-    const diag = cached.width + 1;
-
-    // too high: 626078196179547
     const steps = 26501365;
-    const out = cached.go_n(steps - straight) + cached.go_s(steps - straight) + cached.go_w(steps - straight) + cached.go_e(steps - straight) + cached.go_ne(steps - diag) + cached.go_nw(steps - diag) + cached.go_se(steps - diag) + cached.go_sw(steps - diag) + cached.w[cached.w.len - 1];
+    const steps_into = steps % data.w;
+    var even_corner: usize = 0;
+    var odd_corner: usize = 0;
+    var even: usize = 0;
+    var odd: usize = 0;
 
-    std.debug.print("Steps {}: {} (full: {} {} {} {})\n", .{ steps, out, cached.n[cached.w.len - 1], cached.e[cached.w.len - 1], cached.s[cached.w.len - 1], cached.w[cached.w.len - 1] });
+    for (0..data.w) |i| {
+        for (0..data.h) |j| {
+            const x: isize = @intCast(i);
+            const y: isize = @intCast(j);
+
+            if (data.countField.get(x, y)) |v| {
+                if (v > 1000) continue;
+                if (v % 2 == 0) {
+                    even += 1;
+                    if (v > steps_into) {
+                        even_corner += 1;
+                    }
+                } else {
+                    odd += 1;
+                    if (v > steps_into) {
+                        odd_corner += 1;
+                    }
+                }
+            }
+        }
+    }
+    const n = ((steps - (data.w / 2)) / data.w);
+    const p2 = ((n + 1) * (n + 1)) * odd + (n * n) * even - (n + 1) * odd_corner + n * even_corner;
+
+    std.debug.print("Part 2: {}\n", .{p2});
 }
