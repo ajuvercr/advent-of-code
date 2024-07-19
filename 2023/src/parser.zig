@@ -16,6 +16,15 @@ pub const Parser = struct {
         }
         return null;
     }
+    pub fn while_c(self: *Parser, c: u8) []const u8 {
+        const start = self.pos;
+        var at = self.pos;
+        while (at < self.buf.len and self.buf[at] == c) {
+            at += 1;
+        }
+        self.pos = at;
+        return self.buf[start..at];
+    }
 
     pub fn peek(self: *Parser, at: usize) ?u8 {
         if (self.pos + at < self.buf.len) {
@@ -41,10 +50,18 @@ pub const Parser = struct {
             at += 1;
         }
 
-        const out = std.fmt.parseInt(T, self.buf[start..at], 10) catch {
-            return null;
-        };
-        self.pos = at;
-        return out;
+        if (T == usize or T == isize) {
+            const out = std.fmt.parseInt(T, self.buf[start..at], 10) catch {
+                return null;
+            };
+            self.pos = at;
+            return out;
+        } else {
+            const out = std.fmt.parseFloat(T, self.buf[start..at]) catch {
+                return null;
+            };
+            self.pos = at;
+            return out;
+        }
     }
 };
