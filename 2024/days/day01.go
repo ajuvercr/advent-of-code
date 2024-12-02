@@ -1,4 +1,4 @@
-package main
+package days
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-func main() {
+func Day01() {
 	dat, err := os.ReadFile("./input/01.txt")
 	// dat, err := os.ReadFile("./example.txt")
 	if err != nil {
