@@ -3,60 +3,16 @@ package days
 import (
   "os"
   "fmt"
+  "aoc/utils"
 )
 
-func Split[T comparable](inp []T, value T) [][]T {
-	var out [][]T
-  var t []T
-  for i := range(inp) {
-    if value == inp[i] {
-      out = append(out, t)
-      t = make([]T, 0)
-    } else {
-      t = append(t, inp[i])
-    }
-  }
-  return out
-}
-
-type Optional[T any] struct {
-  value T
-  isSet bool
-}
-
-func Empty[T any]() Optional[T] {
-  return Optional[T]{ isSet: false }
-}
-
-func Value[T any](value T) Optional[T] {
-  out :=  Optional[T]{ isSet: true}
-  out.value = value
-  return out
-}
-
-type Grid[T any] struct {
-  content [][]T
-}
-
-func (r *Grid[T]) Get(x int, y int ) Optional[T] {
-  if x >= len(r.content)  || x<0 {
-    return Empty[T]()
-  }
-  
-  if y >= len(r.content[x]) || y<0 {
-    return Empty[T]()
-  }
-
-  return Value(r.content[x][y])
-}
-
  
-func count(grid Grid[byte], x int, y int, i int, todo []byte, options [][]int) int {
+func count(grid utils.Grid[byte], x int, y int, i int, todo []byte, options [][]int) int {
   if len(todo) == i {
     return 1
   }
   v := grid.Get(x, y)
-  if !v.isSet || v.value != todo[i] {
+  if !v.IsSet || v.Value != todo[i] {
     return 0
   }
 
@@ -76,9 +32,9 @@ func count(grid Grid[byte], x int, y int, i int, todo []byte, options [][]int) i
   return out
 }
 
-func part2Valid(grid Grid[byte], x int, y int) int {
+func part2Valid(grid utils.Grid[byte], x int, y int) int {
   v := grid.Get(x, y)
-  if !v.isSet || v.value != 'A' {
+  if !v.IsSet || v.Value != 'A' {
     return 0
   }
 
@@ -93,8 +49,8 @@ func part2Valid(grid Grid[byte], x int, y int) int {
   for k := range(options) {
     o := options[k]
     p := grid.Get(x + o[0], y+o[1])
-    if p.isSet {
-      things =append(things, p.value)
+    if p.IsSet {
+      things =append(things, p.Value)
     }
   }
 
@@ -114,7 +70,6 @@ func part2Valid(grid Grid[byte], x int, y int) int {
     return 0
   }
 
-	fmt.Println("things:", things, x, y)
   if things[0] == things[1] || things[1] == things[2] || things[2] == things[3] {
     return 1
   }
@@ -128,13 +83,13 @@ func Day04() {
 		panic(err)
 	}
 
-  lines := Split(dat, '\n')
-  grid := Grid [byte]{ content: lines}
+  lines := utils.Split(dat, '\n')
+  grid := utils.Grid [byte]{ Content: lines}
 
   part1 := 0
   part2 := 0
-  for i := 0; i< len(grid.content); i++ {
-    for j := 0; j< len(grid.content[i]); j++ {
+  for i := 0; i< len(grid.Content); i++ {
+    for j := 0; j< len(grid.Content[i]); j++ {
       options := [][]int{
         {0, 1},
         {1, 1},
@@ -155,6 +110,5 @@ func Day04() {
 
 	fmt.Println("part1:", part1)
 	fmt.Println("part2:", part2)
-
 }
 

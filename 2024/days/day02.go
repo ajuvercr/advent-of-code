@@ -3,51 +3,9 @@ package days
 import (
 	"fmt"
 	"os"
-	"strconv"
+  "aoc/utils"
 )
 
-type parser struct {
-  data  string
-  index int
-}
-
-func ParserInt(parser *parser) (int, error) {
-  var start int
-  started := false
-
-	for parser.index < len(parser.data) {
-		isNumber := parser.data[parser.index] <= '9' && parser.data[parser.index] >= '0'
-    if isNumber {
-      if !started {
-        start = parser.index
-        started = true
-      }
-    } else {
-      if started {
-        break
-      }
-    }
-
-      parser.index ++
-  }
-
-	return strconv.Atoi(string(parser.data[start:parser.index]))
-}
-
-func ParserEnd(parser *parser) bool {
-  return parser.index == len(parser.data)
-}
-
-func ParserTake(parser *parser) byte {
-  out := parser.data[parser.index]
-  parser.index ++
-  return out
-}
-
-func newParser(data string) *parser {
-  p := parser{data: data, index: 0}
-  return &p
-}
 
 func isValid(report []int, skip int) bool {
   increasing := false
@@ -90,24 +48,23 @@ func isValid(report []int, skip int) bool {
 }
 
 func Day02() {
-	// dat, err := os.ReadFile("./example.txt")
 	dat, err := os.ReadFile("./input/02.txt")
 	// dat, err := os.ReadFile("./example.txt")
 	if err != nil {
 		panic(err)
 	}
 
-  parser := newParser(string(dat))
+  parser := utils.NewParser(string(dat))
 	var reports [][]int
 
-  for !ParserEnd(parser) {
+  for !parser.End() {
     var report []int
 
-    n, err := ParserInt(parser)
+    n, err := parser.Int()
     report = append(report, n)
 
-    for ParserTake(parser) != '\n' {
-      n, err = ParserInt(parser)
+    for parser.Take() != '\n' {
+      n, err = parser.Int()
       if err != nil {
         break
       }
