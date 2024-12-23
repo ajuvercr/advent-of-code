@@ -74,8 +74,6 @@ func order(items []int, rules []rule) []int {
     lastI = len(items)
   }
 
-
-
   return out
 }
 
@@ -136,16 +134,12 @@ func Day05() {
 
     if valid {
       part1 += items[len(items)/2]
-
     }
-
   }
 
 
 
 	fmt.Println("part1:", part1)
-
-
 	fmt.Println("part2:", part2)
 }
 
