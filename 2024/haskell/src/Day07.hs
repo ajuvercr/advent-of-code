@@ -13,19 +13,21 @@ data Test = Test
 
 data Op = Add | Times | Concat
 
-ops :: [Op] -> Integer -> Integer -> [Integer]
-ops os a b = map op os
-  where
-    op Add = a + b
-    op Times = a * b
-    op Concat = read (show a ++ show b)
+cc :: Integer -> Integer -> Integer
+cc a b = read (show a ++ show b)
 
-applyOp :: (Foldable f, Monoid (f Integer)) => ([Integer] -> f Integer) -> [Op] -> Integer -> f Integer -> [Integer] -> f Integer
+applyOp :: (Foldable f, Monoid (f Integer)) => (Integer -> f Integer -> f Integer) -> [Op] -> Integer -> f Integer -> [Integer] -> f Integer
 applyOp _ _ _ s [] = s
-applyOp fromList os m s (b : xs) = applyOp fromList os m (foldl next mempty s) xs
+applyOp add os m s (b : xs) = applyOp add os m (foldl next mempty s) xs
   where
-    next set x = fromList (filter ltMax (ops os x b)) <> set
-    ltMax x = x <= m
+    next set x = foldl (apply x) set os
+
+    apply a acc Add = tadd (a + b) acc
+    apply a acc Times = tadd (a * b) acc
+    apply a acc Concat = tadd (cc a b) acc
+
+    tadd x acc | x <= m = add x acc
+    tadd _ acc = acc
 
 parseTest :: Parser Test
 parseTest = Test <$> natural <* char ':' <*> plus (char ' ' *> natural)
@@ -35,7 +37,7 @@ parseDay :: String -> [Test] -- adjust type per puzzle
 parseDay = runParser $ star (parseTest <* char '\n')
 
 filterTest :: [Op] -> Test -> Bool
-filterTest os test = any isResult $ applyOp Set.fromList os (result test) (Set.fromList [first]) rest
+filterTest os test = any isResult $ applyOp Set.insert os (result test) (Set.fromList [first]) rest
   where
     first : rest = parts test
     isResult x = x == result test
