@@ -1,0 +1,11 @@
+Text.Printf perror :: String -> a
+GHC.Enum succError :: String -> a
+GHC.Enum predError :: String -> a
+GHC.List errorEmptyList :: HasCallStack => String -> a
+GHC.Stack errorWithStackTrace :: String -> a
+Data.ByteString.Internal overflowError :: String -> a
+Safe abort :: Partial => String -> a
+GHC.Utils.Panic.Plain panic :: HasCallStack => String -> a
+GHC.Utils.Panic.Plain sorry :: HasCallStack => String -> a
+GHC.Utils.Panic.Plain pgmError :: HasCallStack => String -> a
+-- plus more results not shown, pass --count=20 to see more
