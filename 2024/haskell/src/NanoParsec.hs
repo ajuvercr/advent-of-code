@@ -69,6 +69,12 @@ satisfy p = Parser $ \case
   c : cs | p c -> pure (c, cs)
   _ -> empty
 
+-- | Parse a character satisfying something
+anyChar :: Parser Char
+anyChar = Parser $ \case
+  c : cs -> pure (c, cs)
+  _ -> empty
+
 -- | Parse n times something return nothing
 parseTimes :: Int -> Parser a -> Parser [a]
 parseTimes 0 _ = return []
