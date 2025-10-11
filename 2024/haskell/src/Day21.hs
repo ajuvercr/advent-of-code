@@ -1,20 +1,28 @@
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module Day21 (parseDay, part1, part2) where
 
-import Control.Lens hiding (element)
 import Control.Monad.State
-import Data.Foldable (minimumBy)
-import Data.Function (on)
-import Data.Map (Map, (!), (!?))
+import Data.Functor (($>))
+import Data.Map (Map, (!?))
 import qualified Data.Map as Map
-import Data.Set (Set, empty, insert, member)
-import qualified Data.Set as Set
-import Text.ParserCombinators.ReadP (between)
-import Utils ((?:))
+import Data.Set (empty, insert, member)
 
 data AtNum = A0 | A1 | A2 | A3 | A4 | A5 | A6 | A7 | A8 | A9 | A deriving (Show, Eq, Ord)
+
+fromChar :: Char -> AtNum
+fromChar '0' = A0
+fromChar '1' = A1
+fromChar '2' = A2
+fromChar '3' = A3
+fromChar '4' = A4
+fromChar '5' = A5
+fromChar '6' = A6
+fromChar '7' = A7
+fromChar '8' = A8
+fromChar '9' = A9
+fromChar 'A' = A
+fromChar _ = error "invalid char"
 
 atNumNeigh :: AtNum -> [(AtNum, AtPoint)]
 atNumNeigh A1 = [(A2, R), (A4, U)]
@@ -38,91 +46,75 @@ atPointNeigh R = [(D, L), (P, U)]
 atPointNeigh U = [(D, D), (P, R)]
 atPointNeigh P = [(R, D), (U, L)]
 
+findPahts :: (Ord a) => (a -> [(a, AtPoint)]) -> a -> a -> [[AtPoint]]
+findPahts f start end = (P :) <$> findPahts' empty start
+  where
+    findPahts' done c
+      | c == end = [[P]]
+      | c `member` done = []
+      | otherwise = (\(newAt, c') -> (c' :) <$> findPahts' (c `insert` done) newAt) `concatMap` f c
+
+pathPairs :: [a] -> [(a, a)]
+pathPairs [] = []
+pathPairs [_] = []
+pathPairs (x : y : xs) = (x, y) : pathPairs (y : xs)
+
 data Move = MUp | MLeft | MDown | MRight deriving (Show, Eq, Ord)
 
-type Coord = (Int, Int)
+parseDay :: String -> [(Int, [AtNum])]
+parseDay st = readOne <$> (/= "") `filter` lines st
 
-data St = St
-  { _bot1 :: Map (AtNum, [AtNum]) [[AtPoint]],
-    _bot2 :: Map (AtPoint, [AtPoint]) [[AtPoint]],
-    _bot3 :: Map (AtPoint, [AtPoint]) [[AtPoint]]
-  }
-  deriving (Show)
+chopOne :: [a] -> [a]
+chopOne [] = []
+chopOne [_] = []
+chopOne (x : xs) = x : chopOne xs
 
-makeLensesFor [("_bot1", "bot1"), ("_bot2", "bot2"), ("_bot3", "bot3")] ''St
-
-parseDay :: String -> Int
-parseDay st = 0
-
-concatMapM :: (Monad m) => (a -> m [b]) -> [a] -> m [b]
-{-# INLINE concatMapM #-}
-concatMapM op = foldr f (pure [])
+readOne :: String -> (Int, [AtNum])
+readOne st = (read $ chopOne st, r' st)
   where
-    f x xs = do x <- op x; if null x then xs else do { xs <- xs; pure $ x ++ xs }
-
-tryIt :: (Applicative m) => m a -> Maybe a -> m a
-tryIt _ (Just x) = pure x
-tryIt o _ = o
-
-shortestNum :: AtNum -> [AtNum] -> State St [[AtPoint]]
-shortestNum _ [] = pure [[]]
-shortestNum at (x : xs) = do
-  cached <- (!? (at, x : xs)) <$> use bot1
-  tryIt other cached
-  where
-    other = do
-      el <- findNext empty at
-      bot1 %= Map.insert (at, x : xs) el
-      return el
-    findNext :: Set AtNum -> AtNum -> State St [[AtPoint]]
-    findNext done at'
-      | at' == x = ((P :) <$>) <$> shortestNum at' xs
-      | at' `member` done = pure []
-      | otherwise = (\(newAt, don) -> ((don :) <$>) <$> findNext (at' `insert` done) newAt) `concatMapM` atNumNeigh at'
-
-shortestMove :: Lens' St (Map (AtPoint, [AtPoint]) [[AtPoint]]) -> AtPoint -> [AtPoint] -> State St [[AtPoint]]
-shortestMove _ _ [] = pure [[]]
-shortestMove l at (x : xs) = do
-  cached <- (!? (at, x : xs)) <$> use l
-  tryIt other cached
-  where
-    other = do
-      el <- findNext empty at
-      l %= Map.insert (at, x : xs) el
-      return el
-    findNext :: Set AtPoint -> AtPoint -> State St [[AtPoint]]
-    findNext done at'
-      | at' == x = ((P :) <$>) <$> shortestMove l at' xs
-      | at' `member` done = pure []
-      | otherwise = (\(newAt, don) -> ((don :) <$>) <$> findNext (at' `insert` done) newAt) `concatMapM` atPointNeigh at'
-
-moveIt :: Move -> Coord -> Coord
-moveIt MUp (x, y) = (x, y - 1)
-moveIt MDown (x, y) = (x, y + 1)
-moveIt MLeft (x, y) = (x - 1, y)
-moveIt MRight (x, y) = (x + 1, y)
-
-dist :: Coord -> Coord -> Int
-dist (x1, y1) (x2, y2) = abs (x1 - x2) + abs (y1 - y2)
+    r' [] = []
+    r' (x : xs) = fromChar x : r' xs
 
 -- Part 2
-part1 _ = filter ((== minL) . length) options
+part1 :: [(Int, [AtNum])] -> Int
+part1 x = o
   where
-    minL = minimum (length <$> options)
-    options = evalState (shortestNum A [A0, A2, A9, A]) (St Map.empty Map.empty Map.empty)
+    o = evalState things Map.empty
+    things = sum <$> getOne `mapM` x
+    getOne (c, xs) = (* c) <$> findShortest 1 xs
 
-filterIt :: Int -> [[a]] -> [[a]]
-filterIt lay xs = ((< m) . length) `filter` xs
+type P2 = State (Map (Int, (AtPoint, AtPoint)) Int) Int
+
+findShortest :: Int -> [AtNum] -> P2
+findShortest i x = sum <$> things
   where
-    m = minimum (length <$> xs) + lay
+    things = findThing `mapM` allPaths
+    findThing p = minimum <$> (resolvePath i `mapM` p)
+    path = pathPairs (A : x)
+    allPaths = uncurry (findPahts atNumNeigh) <$> path
+
+resolvePath :: Int -> [AtPoint] -> P2
+resolvePath i path = options
+  where
+    ps = pathPairs path
+    options = sum <$> shortestPath i `mapM` ps
+
+shortestPath :: Int -> (AtPoint, AtPoint) -> P2
+shortestPath i (s, e) = do
+  cached <- gets (!? (i, (s, e)))
+  case cached of
+    Just x -> pure x
+    Nothing -> apply `mapM` paths >>= ins . minimum
+  where
+    ins :: Int -> P2
+    ins x = modify (Map.insert (i, (s, e)) x) $> x
+    paths = findPahts atPointNeigh s e
+    apply = if i == 0 then (\x -> pure $ length x - 1) else resolvePath (i - 1)
 
 -- Part 2
-part2 _ = (o, minL)
+part2 :: [(Int, [AtNum])] -> Int
+part2 x = o
   where
-    o = filter ((== minL) . length) options
-    minL = minimum (length <$> options)
-    b1 = shortestNum A [A0, A2, A9, A]
-    b2 = shortestMove bot2 P
-    b3 = shortestMove bot3 P
-    optionMonad = b1 >>= concatMapM b2 . filterIt 1 >>= concatMapM b3 . filterIt 1
-    options = evalState optionMonad (St Map.empty Map.empty Map.empty)
+    o = evalState things Map.empty
+    things = sum <$> getOne `mapM` x
+    getOne (c, xs) = (* c) <$> findShortest 24 xs
