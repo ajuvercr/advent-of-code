@@ -87,6 +87,9 @@ ignore p = p $> ()
 oneOf :: String -> Parser Char
 oneOf s = satisfy (`elem` s)
 
+noneOf :: String -> Parser Char
+noneOf s = satisfy (not . (`elem` s))
+
 -- | Parse a specific character
 char :: Char -> Parser Char
 char c = satisfy (c ==)
