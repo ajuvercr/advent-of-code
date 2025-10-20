@@ -21,6 +21,7 @@ executable haskell2
   other-modules:
       Day01
       Day02
+      Day06
       Day07
       Day08
       Day09
