@@ -38,6 +38,7 @@ executable haskell2
       Day20
       Day21
       Day24
+      Day25
       Utils
       Days
       NanoParsec

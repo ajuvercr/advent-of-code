@@ -22,6 +22,7 @@ import qualified Day19
 import qualified Day20
 import qualified Day21
 import qualified Day24
+import qualified Day25
 import Utils ((?:))
 
 -- … add more here
@@ -55,7 +56,8 @@ days =
     ("19", SomeDay $ Day Day19.parseDay Day19.part1 Day19.part2 "../input/19.txt"),
     ("20", SomeDay $ Day Day20.parseDay Day20.part1 Day20.part2 "../input/20.txt"),
     ("21", SomeDay $ Day Day21.parseDay Day21.part1 Day21.part2 "../input/21.txt"),
-    ("24", SomeDay $ Day Day24.parseDay Day24.part1 Day24.part2 "../input/24.txt")
+    ("24", SomeDay $ Day Day24.parseDay Day24.part1 Day24.part2 "../input/24.txt"),
+    ("25", SomeDay $ Day Day25.parseDay Day25.part1 Day25.part2 "../input/25.txt")
   ]
 
 runDay :: Maybe FilePath -> SomeDay -> IO ()
