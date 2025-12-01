@@ -1,0 +1,5 @@
+resolver: lts-23.7   # GHC 9.6.5 (compatible with HLS 2.x)
+compiler: ghc-9.6.6
+
+packages:
+  - .
