@@ -1,6 +1,6 @@
 {-# LANGUAGE TupleSections #-}
 
-module Utils ((?:), traceOutput, traceInput, pairs) where
+module Utils ((?:), traceOutput, traceInput, pairs, split, chunksOf) where
 
 import Debug.Trace (trace)
 
@@ -25,3 +25,20 @@ pairs [_] = []
 pairs (x : xs) = items ++ pairs xs
   where
     items = map (x,) xs
+
+split :: Char -> String -> [String]
+split c s = case rest of
+  [] -> [chunk]
+  _ : rest' -> chunk : split c rest'
+  where
+    (chunk, rest) = break (== c) s
+
+build :: ((a -> [a] -> [a]) -> [a] -> [a]) -> [a]
+build g = g (:) []
+
+chunksOf :: Int -> [e] -> [[e]]
+chunksOf i ls = map (take i) (build (splitter ls))
+  where
+    splitter :: [e] -> ([e] -> a -> a) -> a -> a
+    splitter [] _ n = n
+    splitter l c n = l `c` splitter (drop i l) c n
