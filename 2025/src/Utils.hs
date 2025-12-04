@@ -1,6 +1,6 @@
 {-# LANGUAGE TupleSections #-}
 
-module Utils ((?:), traceOutput, traceInput, pairs, split, chunksOf) where
+module Utils ((?:), splitLast, traceOutput, traceInput, pairs, split, chunksOf) where
 
 import Debug.Trace (trace)
 
@@ -42,3 +42,9 @@ chunksOf i ls = map (take i) (build (splitter ls))
     splitter :: [e] -> ([e] -> a -> a) -> a -> a
     splitter [] _ n = n
     splitter l c n = l `c` splitter (drop i l) c n
+
+splitLast :: [a] -> ([a], a)
+splitLast [] = error "splitLast: empty list"
+splitLast [x] = ([], x)
+splitLast (x : xs) =
+  let (xs', lastx) = splitLast xs in (x : xs', lastx)

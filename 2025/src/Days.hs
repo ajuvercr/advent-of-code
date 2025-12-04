@@ -5,6 +5,8 @@ module Days (Day, days, runDay) where
 
 import qualified Day01
 import qualified Day02
+import qualified Day03
+import qualified Day04
 import qualified Day06
 import qualified Day07
 import qualified Day08
@@ -29,6 +31,8 @@ days :: [(String, SomeDay)]
 days =
   [ ("1", SomeDay $ Day Day01.parse Day01.part1 Day01.part2 "input/01.txt"),
     ("2", SomeDay $ Day Day02.parse Day02.part1 Day02.part2 "input/02.txt"),
+    ("3", SomeDay $ Day Day03.parse Day03.part1 Day03.part2 "input/03.txt"),
+    ("4", SomeDay $ Day Day04.parse Day04.part1 Day04.part2 "input/04.txt"),
     ("6", SomeDay $ Day Day06.parseDay Day06.part1 Day06.part2 "input/06.txt"),
     ("10", SomeDay $ Day Day10.parseDay Day10.part1 Day10.part2 "input/10.txt"),
     ("11", SomeDay $ Day Day11.parseDay Day11.part1 Day11.part2 "input/11.txt"),
