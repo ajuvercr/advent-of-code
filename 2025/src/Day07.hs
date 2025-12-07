@@ -1,51 +1,76 @@
+{-# LANGUAGE TupleSections #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Day07 (parseDay, part1, part2) where
 
-import qualified Data.Set as Set
-import NanoParsec
+import Data.List (find)
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Set (Set, empty, insert, intersection, member, singleton, toDescList, toList, union)
+import Utils (nTimes)
 
-data Test = Test
-  { result :: Integer,
-    parts :: [Integer]
-  }
-  deriving (Show)
+type Coord = (Int, Int)
 
-data Op = Add | Times | Concat
+type Day = (Coord, Set Coord, Int)
 
-cc :: Integer -> Integer -> Integer
-cc a b = read (show a ++ show b)
-
-applyOp :: (Foldable f, Monoid (f Integer)) => (Integer -> f Integer -> f Integer) -> [Op] -> Integer -> f Integer -> [Integer] -> f Integer
-applyOp _ _ _ s [] = s
-applyOp add os m s (b : xs) = applyOp add os m (foldl next mempty s) xs
+-- Parsing
+parseDay :: String -> Day
+parseDay xs' = (s, r, length $ lines xs')
   where
-    next set x = foldl (apply x) set os
+    (s, r) = getSet (0, 0) xs'
+    getSet :: Coord -> String -> (Coord, Set Coord)
+    getSet (i, j) ('^' : xs) = (s, (j, i) `insert` r)
+      where
+        (s, r) = getSet (i + 1, j) xs
+    getSet (i, j) ('S' : xs) = ((j, i), r)
+      where
+        (_, r) = getSet (i + 1, j) xs
+    getSet (_, j) ('\n' : xs) = getSet (0, j + 1) xs
+    getSet (i, j) (_ : xs) = getSet (i + 1, j) xs
+    getSet _ [] = ((0, 0), empty)
 
-    apply a acc Add = tadd (a + b) acc
-    apply a acc Times = tadd (a * b) acc
-    apply a acc Concat = tadd (cc a b) acc
-
-    tadd x acc | x <= m = add x acc
-    tadd _ acc = acc
-
-parseTest :: Parser Test
-parseTest = Test <$> natural <* char ':' <*> plus (char ' ' *> natural)
-
---  Parsing
-parseDay :: String -> [Test] -- adjust type per puzzle
-parseDay = runParser $ star (parseTest <* char '\n')
-
-filterTest :: [Op] -> Test -> Bool
-filterTest os test = any isResult $ applyOp Set.insert os (result test) (Set.fromList [first]) rest
+moveDown :: Set Coord -> (Set Coord, Int) -> (Set Coord, Int)
+moveDown splitter (xs, times) = (newSet, times + extra)
   where
-    first : rest = parts test
-    isResult x = x == result test
+    newSet = foldl union empty $ moveDown' <$> toList xs
+    extra = length $ intersection xs splitter
+    moveDown' :: Coord -> Set Coord
+    moveDown' x@(i, j)
+      | x `member` splitter = (i + 1, j - 1) `insert` singleton (i + 1, j + 1)
+      | otherwise = singleton (i + 1, j)
+
+type Tree = Map Coord [Coord]
+
+buildTree :: Int -> [Coord] -> Tree -> Tree
+buildTree _ [] x = x
+buildTree l (x@(i, j) : xs) tree = ts
+  where
+    rest = buildTree l xs tree
+    left = find (`Map.member` tree) $ (,j - 1) <$> [i + 1 .. i + l]
+    right = find (`Map.member` tree) $ (,j + 1) <$> [i + 1 .. i + l]
+    mcons :: Maybe Coord -> Tree -> Tree
+    mcons (Just k) tree' = Map.update (update k) x tree'
+    mcons Nothing tree' = tree'
+    update x' xs' = Just (x' : xs')
+    ts = mcons left $ mcons right rest
+
+countTree :: Tree -> [Coord] -> Map Coord Int -> Map Coord Int
+countTree _ [] counts = counts
+countTree tree (x : xs) counts = countTree tree xs (Map.insert x total counts)
+  where
+    children = tree Map.! x
+    childSum = (counts Map.!) <$> children
+    total = counts Map.! x + sum childSum
 
 -- Part 1
-part1 :: [Test] -> Integer
-part1 tests = sum $ map result $ filter (filterTest [Times, Add]) tests
+part1 :: Day -> Int
+part1 (s, r, l) = snd $ nTimes l (moveDown r) (singleton s, 0)
 
 -- Part 2
-part2 :: [Test] -> Integer
-part2 tests = sum $ map result $ filter (filterTest [Times, Add, Concat]) tests
+part2 (_, r, l) = h
+  where
+    countStart = Map.map m2 tree
+    counted = countTree tree (toDescList r) countStart
+    h = (snd . head . Map.toList) counted
+    m2 x = 2 - length x
+    tree = buildTree l (toList r) (Map.fromList $ (,[]) <$> toList r)

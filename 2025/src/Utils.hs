@@ -1,6 +1,6 @@
 {-# LANGUAGE TupleSections #-}
 
-module Utils ((?:), splitLast, traceOutput, traceInput, pairs, split, chunksOf) where
+module Utils ((?:), splitLast, nTimes, traceOutput, traceInput, pairs, split, chunksOf) where
 
 import Debug.Trace (trace)
 
@@ -48,3 +48,9 @@ splitLast [] = error "splitLast: empty list"
 splitLast [x] = ([], x)
 splitLast (x : xs) =
   let (xs', lastx) = splitLast xs in (x : xs', lastx)
+
+-- | Apply a function @n@ times to a given value.
+nTimes :: Int -> (a -> a) -> (a -> a)
+nTimes 0 _ = id
+nTimes 1 f = f
+nTimes n f = f . nTimes (n - 1) f
