@@ -1,78 +1,80 @@
-{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-
 module Day08 (parseDay, part1, part2) where
 
-import Control.Monad.State
-import Data.Functor
+import Data.List (sort, sortBy)
 import qualified Data.Map as Map
+import Data.Ord (comparing)
 import qualified Data.Set as Set
-import Utils (pairs)
+import Utils (nTimes, split)
 
-type Coord = (Int, Int)
+type Coord = (Int, Int, Int)
 
-type FreqMap = Map.Map Char [Coord]
+type Day = (Map.Map Coord Int, Closest)
 
-step :: Char -> Int -> Int -> State FreqMap Char
-step '.' _ _ = pure '.'
-step c k j = modify update $> c
+type Closest = [(Int, Coord, Coord)]
+
+dist :: Coord -> Coord -> Int
+dist (a1, b1, c1) (a2, b2, c2) = da * da + db * db + dc * dc
   where
-    update = Map.insertWith (++) c [(k, j)]
+    da = a1 - a2
+    db = b1 - b2
+    dc = c1 - c2
 
-steps :: Int -> Int -> String -> State FreqMap ()
-steps _ j ('\n' : xs) = steps 0 (j + 1) xs
-steps i j (x : xs) = step x i j >> steps (i + 1) j xs
-steps _ _ [] = pure ()
-
-split :: Char -> String -> [String]
-split char = _split char []
+parseDay :: String -> Day
+parseDay inp = (coordMap, sort $ findDists `concatMap` coords)
   where
-    _split _ [] [] = []
-    _split _ x [] = [x]
-    _split c ys (x : xs) | c == x = ys : _split c [] xs
-    _split c ys (x : xs) = _split c (x : ys) xs
+    coordMap = Map.fromList $ zip coords [0 ..]
+    findDist a b
+      | a < b = [(dist a b, a, b)]
+      | otherwise = []
+    findDists a = findDist a `concatMap` coords
+    coords = toTriples . (read <$>) . split ',' <$> lines inp
+    toTriples [a, b, c] = (a, b, c)
+    toTriples _ = error "not a triple"
 
-parseDay :: String -> (FreqMap, Coord) -- adjust type per puzzle
-parseDay inp = (execState (steps 0 0 inp) Map.empty, bound)
+combine' :: (Map.Map Coord Int, Closest) -> (Map.Map Coord Int, Closest)
+combine' (map', (_, a, b) : xs)
+  | ac == bc = (map', xs)
+  | otherwise = (newMap, xs)
   where
-    splits = split '\n' inp
-    bound = (count splits, count $ head splits)
+    ac = map' Map.! a
+    bc = map' Map.! b
+    newMap = mapValue <$> map'
+    mapValue v
+      | v == ac = bc
+      | otherwise = v
+combine' _ = error "nah"
 
-addAntinodes :: Set.Set Coord -> (Coord, Coord) -> Set.Set Coord
-addAntinodes coords ((x1, y1), (x2, y2)) = Set.insert one $ Set.insert two coords
+countSizes :: Map.Map Coord Int -> [Int]
+countSizes map' = sortBy (comparing (* (-1))) counts
   where
-    (dx, dy) = (x1 - x2, y1 - y2)
-    one = (x1 + dx, y1 + dy)
-    two = (x2 - dx, y2 - dy)
+    counts = Map.elems $ foldr (Map.alter alter) Map.empty map'
+    alter (Just x) = Just (x + 1)
+    alter Nothing = Just 1
 
-addAntinodes2 :: Coord -> Set.Set Coord -> (Coord, Coord) -> Set.Set Coord
-addAntinodes2 bound coords ((x1, y1), (x2, y2)) = foldl (flip Set.insert) coords antinodes
+output :: [Int] -> Int
+output (a : b : c : _) = a * b * c
+output _ = error "nah"
+
+untilOutput :: (a -> Bool) -> (a -> a) -> a -> a
+untilOutput f a i
+  | f next = i
+  | otherwise = untilOutput f a next
   where
-    (dx, dy) = (x1 - x2, y1 - y2)
-    lower = max (max x1 x2 `div` dx) (max y1 y2 `div` dy) + 1
-    upper = max (fst bound `div` dx) (snd bound `div` dy) + 1
-    antinodes = map getNode [-1 * lower .. upper]
-    getNode i = (x1 + i * dx, y1 + i * dy)
-
-count :: [a] -> Int
-count = foldr (\_ -> (+) 1) 0
-
-valid :: Coord -> Coord -> Bool
-valid (mx, my) (x, y) = x >= 0 && y >= 0 && x < my && y < mx
+    next = a i
 
 -- Part 2
-part1 :: (FreqMap, Coord) -> Int
-part1 (freqMap, (mx, my)) = count valids
+part1 :: Day -> Int
+part1 (y, x) = output $ countSizes combined
   where
-    valids = filter (valid (mx, my)) (Set.toList antinodeSet)
-    antinodeSet = foldl addAntinodes Set.empty allPairs
-    allPairs = concatMap pairs elems
-    elems = Map.elems freqMap
+    (combined, _) = nTimes 1000 combine' (y, x)
+
+output2 :: Closest -> Int
+output2 ((_, (x, _, _), (y, _, _)) : _) = x * y
+output2 _ = error "nah"
 
 -- Part 2
-part2 :: (FreqMap, Coord) -> Int
-part2 (freqMap, (mx, my)) = count valids
+part2 :: Day -> Int
+part2 (y, x) = output2 xs
   where
-    valids = filter (valid (mx, my)) (Set.toList antinodeSet)
-    antinodeSet = foldl (addAntinodes2 (mx, my)) Set.empty allPairs
-    allPairs = concatMap pairs elems
-    elems = Map.elems freqMap
+    (_, xs) = untilOutput allSame combine' (y, x)
+    allSame (m, _) = length (Set.fromList $ Map.elems m) == 1

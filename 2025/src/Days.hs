@@ -37,6 +37,7 @@ days =
     ("5", SomeDay $ Day Day05.parse Day05.part1 Day05.part2 "input/05.txt"),
     ("6", SomeDay $ Day Day06.parseDay Day06.part1 Day06.part2 "input/06.txt"),
     ("7", SomeDay $ Day Day07.parseDay Day07.part1 Day07.part2 "input/07.txt"),
+    ("8", SomeDay $ Day Day08.parseDay Day08.part1 Day08.part2 "input/08.txt"),
     ("10", SomeDay $ Day Day10.parseDay Day10.part1 Day10.part2 "input/10.txt"),
     ("11", SomeDay $ Day Day11.parseDay Day11.part1 Day11.part2 "input/11.txt"),
     ("12", SomeDay $ Day Day12.parseDay Day12.part1 Day12.part2 "input/12.txt")
