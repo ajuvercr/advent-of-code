@@ -1,6 +1,6 @@
 {-# LANGUAGE TupleSections #-}
 
-module Utils ((?:), splitLast, nTimes, traceOutput, traceInput, pairs, split, chunksOf) where
+module Utils (orElse, (?:), splitLast, nTimes, traceOutput, traceInput, pairs, split, chunksOf) where
 
 import Debug.Trace (trace)
 
@@ -54,3 +54,7 @@ nTimes :: Int -> (a -> a) -> (a -> a)
 nTimes 0 _ = id
 nTimes 1 f = f
 nTimes n f = f . nTimes (n - 1) f
+
+orElse :: Maybe a -> a -> a
+orElse (Just x) _ = x
+orElse Nothing x = x

@@ -1,91 +1,92 @@
 module Day09 (parseDay, part1, part2) where
 
-import Control.Monad.State
-import Data.Char (isDigit)
-import Data.Foldable (toList)
+import Data.List (find, sort)
+import Data.Set (fromList, toList)
+import Debug.Trace (trace)
+import GHC.Base (Alternative (some))
+import Utils (orElse, split)
 
-type Day = ([Maybe Int], [Part2])
+type Coord = (Int, Int)
 
-type Part2 = Either Int (Int, Int)
+type Line = (Coord, Coord)
+
+type Day = [Coord]
 
 --  Parsing
 parseDay :: String -> Day -- adjust type per puzzle
-parseDay x = (inp 0 red, inp2 0 red)
+parseDay x = toCoord <$> lines x
   where
-    filtered = filter isDigit x
-    red = map (read . (: [])) filtered
-
-inp :: Int -> [Int] -> [Maybe Int]
-inp cId (used : free : rest) = replicate used (Just cId) ++ replicate free Nothing ++ inp (cId + 1) rest
-inp cId [used] = replicate used $ Just cId
-inp _ [] = []
-
-inp2 :: Int -> [Int] -> [Part2]
-inp2 cId (used : free : rest) = [Right (cId, used), Left free] ++ inp2 (cId + 1) rest
-inp2 cId [used] = [Right (cId, used)]
-inp2 _ [] = []
-
-step :: Int -> [Maybe Int] -> [Int] -> [Int]
-step 0 _ _ = []
-step i (Just x : xs) other = x : step (i - 1) xs other
-step i (Nothing : xs) (o : os) = o : step (i - 1) xs os
-step _ _ _ = []
-
-collect :: (Foldable t) => [t a] -> [a]
-collect = concatMap toList
+    toCoord x' = toTuple $ read <$> split ',' x'
+    toTuple [a, b] = (a, b)
+    toTuple _ = error "not a tuple"
 
 -- Part 1
 part1 :: Day -> Int
-part1 (input, _) = checksum $ step (length reveresed) input reveresed
+part1 s = maximum $ tryOne <$> s
   where
-    reveresed = reverse $ collect input
+    tryOne x = maximum $ opp x <$> s
 
-checksum :: [Int] -> Int
-checksum = _check 0
+opp :: Coord -> Coord -> Int
+opp (a, b) (c, d) = dx * dy
   where
-    _check _ [] = 0
-    _check c (x : xs) = c * x + _check (c + 1) xs
+    dx = 1 + abs (a - c)
+    dy = 1 + abs (b - d)
 
-findPart2 :: Int -> [(Int, Int)] -> Maybe ((Int, Int), [(Int, Int)])
-findPart2 _ [] = Nothing
-findPart2 f ((cId, l) : xs) | f >= l = Just ((cId, l), xs)
-findPart2 f (r : xs) = do
-  (found, other) <- findPart2 f xs
-  return (found, r : other)
-
-findPart :: Int -> State [(Int, Int)] (Maybe (Int, Int))
-findPart count = do
-  n <- get
-  case findPart2 count n of
-    Just (found, st) -> do
-      put st
-      return $ Just found
-    Nothing -> return Nothing
-
-filterOut :: (Eq a) => a -> Maybe a -> [a] -> [a]
-filterOut a Nothing = filter (/= a)
-filterOut a (Just to) = map mapper
+countIntersections :: [Line] -> Coord -> Int -> Int
+countIntersections [] _ x = x
+countIntersections (((at, y1), (_, y2)) : xs) (a, b) i
+  | at > a = i
+  | otherwise = countIntersections xs (a, b) (i + c)
   where
-    mapper b | b == a = to
-    mapper b = b
+    c
+      | b >= y1 && b < y2 = 1
+      | otherwise = 0
 
-step2 :: Int -> [Part2] -> State [(Int, Int)] [(Int, Int)]
-step2 0 _ = pure []
-step2 _ [] = pure []
-step2 c (Right x : xs) = modify (filterOut x Nothing) >> (x :) <$> step2 (c - 1) xs
-step2 c (Left x : xs) = do
-  y <- findPart x
-  case y of
-    Just (cId, le) -> ((cId, le) :) <$> step2 (c - 1) (filterOut (Right (cId, le)) (Just $ Left le) (Left (x - le) : xs))
-    Nothing -> ((0, x) :) <$> step2 c xs
+inside :: [Line] -> Coord -> Bool
+inside a b = odd $ countIntersections a b 0
 
-part2ToPart1 :: [(Int, Int)] -> [Int]
-part2ToPart1 [] = []
-part2ToPart1 ((cId, count) : xs) = replicate count cId ++ part2ToPart1 xs
+bump :: Coord -> Coord
+bump (a, b) = (a + 1, b)
+
+testPoints :: [Coord] -> [Coord]
+testPoints cs = [(x, y) | x <- xs, y <- ys]
+  where
+    xs = toList $ fromList $ fst <$> cs
+    ys = toList $ fromList $ snd <$> cs
+
+type Square = Line
+
+validSquare :: [Coord] -> Square -> Bool
+validSquare cs ((a, b), (c, d)) = not $ any isInside cs
+  where
+    isInside (x, y) = x >= a && x <= c && y >= b && y <= d
+
+onLine :: Coord -> (Coord, Coord) -> Bool
+onLine (x, y) ((a, b), (c, d)) = y <= ma_y && y >= mi_y && x <= ma_x && x >= mi_x
+  where
+    mi_x = min a c
+    ma_x = max a c
+    mi_y = min b d
+    ma_y = max b d
+
+size :: Square -> Int
+size ((a, b), (c, d)) = (c - a + 1) * (d - b + 1)
 
 -- Part 2
-part2 :: Day -> Int
-part2 (_, input) = checksum $ part2ToPart1 o
+-- too low 2202158
+part2 points@(x : xs) = maximum $ size <$> squares
   where
-    o = evalState (step2 (length input) input) reveresed
-    reveresed = reverse $ collect input
+    -- part2 points@(x : xs) = countIntersections vertLines (9, 3) 0
+
+    squares = validSquare tp `filter` [((min a c, min b d), (max a c, max b d)) | x@(a, b) <- points, y@(c, d) <- points, x > y]
+    tp = checkPoint `filter` testPoints points
+    checkPoint x = not (any (onLine x) allLines || inside vertLines x)
+    allLines = zip points (xs ++ [x])
+    vertLines = sort $ sortLine <$> isVertical `filter` zip points (xs ++ [x])
+    horLines = isHorizontal `filter` zip points (xs ++ [x])
+    isVertical ((a, _), (b, _)) = a == b
+    isHorizontal ((_, a), (_, b)) = a == b
+    sortLine (a, b)
+      | a == min a b = (a, b)
+      | otherwise = (b, a)
+part2 _ = error "nah"
