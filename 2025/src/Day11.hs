@@ -1,98 +1,61 @@
+{-# LANGUAGE TupleSections #-}
+
 module Day11 (parseDay, part1, part2) where
 
-import Control.Monad.State
-import Data.Bifunctor (first)
-import Data.Functor ((<&>))
-import Data.Map (Map, insert, (!?))
-import GHC.Base (quotRemInt)
-import NanoParsec (digit, plus, runParser, spaces, star)
+import Data.List (find)
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Utils (split)
 
-type Day = [[Int]]
+type Day = [(String, String)]
 
-num :: Char -> Int
-num '0' = 0
-num '1' = 1
-num '2' = 2
-num '3' = 3
-num '4' = 4
-num '5' = 5
-num '6' = 6
-num '7' = 7
-num '8' = 8
-num '9' = 9
-num x = read [x]
+type Counts = Map String (Int, Int, Int)
+
+parseLine :: String -> [(String, String)]
+parseLine x = (first,) <$> split ' ' sn
+  where
+    (first, s2) = break (== ':') x
+    sn = tail $ tail s2
 
 parseDay :: String -> Day -- adjust type per puzzle
-parseDay = runParser parser
+parseDay x = parseLine `concatMap` lines x
+
+chooseNext :: Day -> Maybe String
+chooseNext xs = find f $ snd <$> xs
   where
-    parser = star (plus (digit <&> num) <* spaces)
+    f x = all ((/= x) . fst) xs
 
--- | Split a list.
-splitHalf :: [a] -> ([a], [a])
-splitHalf xs = go xs xs
+insertPath :: Day -> String -> Counts -> Counts
+insertPath day target counts = foldl updateOne counts starts
   where
-    go (y : ys) (_ : _ : zs) = first (y :) (go ys zs)
-    go ys _ = ([], ys)
+    (a, b, c) = counts Map.! target
+    starts = fst <$> ((== target) . snd) `filter` day
+    updateOne cs t = Map.update (Just . u) t cs
+    u (a1, b2, c2)
+      | target == "dac" || target == "fft" = (a1 + a, b2 + a, c2 + b)
+      | otherwise = (a1 + a, b2 + b, c2 + c)
 
-toNum :: [Int] -> Int
-toNum = foldl (\x -> (+) (10 * x)) 0
-
-toArr :: Int -> [Int]
-toArr 0 = []
-toArr x = toArr i ++ [j]
+step :: (Day, Counts) -> Maybe String -> (Day, Counts)
+step (d, c) (Just target) = step (nextDay, nc) nextTarget
   where
-    (i, j) = quotRemInt x 10
+    nc = insertPath d target c
+    nextDay = ((/= target) . snd) `filter` d
+    nextTarget = chooseNext nextDay
+step (d, c) Nothing = (d, c)
 
-timesIt :: [Int] -> [Int]
-timesIt x = toArr $ 2024 * toNum x
-
-pruneZero :: [Int] -> [Int]
-pruneZero [0] = [0]
-pruneZero (0 : xs) = pruneZero xs
-pruneZero y = y
-
-type MS a = State (Map (Int, [Int]) Int) a
-
-getI :: Int -> [Int] -> MS (Maybe Int)
-getI x y = do
-  st <- get
-  let o = st !? (x, y)
-  return o
-
-putI :: Int -> [Int] -> Int -> MS Int
-putI x y o = do
-  st <- get
-  put $ insert (x, y) o st
-  return o
-
-countBlinkLength :: Int -> [Int] -> MS Int
-countBlinkLength 0 _ = pure 1
-countBlinkLength i x = do
-  m <- getI i x
-  case m of
-    Just out -> return out
-    _ -> count >>= putI i x
-  where
-    nextBlink = countBlinkLength (i - 1)
-    nextBlinks = mapM nextBlink
-    step = nextBlinks . blink
-    count = sum <$> step x
-
-blink :: [Int] -> [[Int]]
-blink [0] = [[1]]
-blink x | even (length x) = [pruneZero i, pruneZero j]
-  where
-    (i, j) = splitHalf x
-blink x = [timesIt x]
-
--- Part 2
 part1 :: Day -> Int
-part1 day = sum o
+part1 day = total
   where
-    o = evalState (mapM (countBlinkLength 25) day) mempty
+    (total, _, _) = c Map.! "you"
+    (_, c) = step (day, startCounts) startTarget
+    startTarget = chooseNext day
+    startCounts = Map.insert "out" (1, 0, 0) $ Map.fromList $ (,(0, 0, 0)) <$> (snd <$> day) ++ (fst <$> day)
 
 -- Part 2
 part2 :: Day -> Int
-part2 day = sum o
+part2 day = total
   where
-    o = evalState (mapM (countBlinkLength 75) day) mempty
+    (_, _, total) = c Map.! "svr"
+    (_, c) = step (day, startCounts) startTarget
+    startTarget = chooseNext day
+    startCounts = Map.insert "out" (1, 0, 0) $ Map.fromList $ (,(0, 0, 0)) <$> (snd <$> day) ++ (fst <$> day)
