@@ -1,7 +1,8 @@
 {-# LANGUAGE TupleSections #-}
 
-module Utils (orElse, (?:), splitLast, nTimes, traceOutput, traceInput, pairs, split, chunksOf) where
+module Utils (orElse, (?:), splitLast, adjust, nTimes, traceOutput, traceInput, pairs, split, chunksOf) where
 
+import Control.Arrow (second)
 import Debug.Trace (trace)
 
 (?:) :: Maybe a -> a -> a
@@ -58,3 +59,7 @@ nTimes n f = f . nTimes (n - 1) f
 orElse :: Maybe a -> a -> a
 orElse (Just x) _ = x
 orElse Nothing x = x
+
+-- | A generally useful list utility
+adjust :: (a -> a) -> Int -> [a] -> [a]
+adjust f i = uncurry (++) . second (\(x : xs) -> f x : xs) . splitAt i

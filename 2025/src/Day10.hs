@@ -2,51 +2,139 @@
 
 module Day10 (parseDay, part1, part2) where
 
-import Control.Monad.State
-import qualified Data.Map as Map
+import Control.Concurrent (yield)
+import Control.Monad (filterM)
+import qualified Control.Monad.State as St
+import Data.Foldable (foldlM)
+import Data.Functor (($>))
+import Data.List (sortBy)
+import Data.Ord (comparing)
+import Data.Set (Set)
+import qualified Data.Set as Set
+import Debug.Trace (trace)
+import GHC.Base ((<|>))
+import NanoParsec (char, delimitered, number, oneOf, runParser, spaces', star)
+import Utils (adjust, traceOutput)
 
-type Coord = (Int, Int)
+type State = [Bool]
 
-type Day = Map.Map Coord Int
+type Buttons = [[Int]]
 
-toMap :: (Int, Int) -> [[Int]] -> State Day ()
-toMap _ [] = pure ()
-toMap (_, y) ([] : xs) = toMap (0, y + 1) xs
-toMap (i, j) ((y : ys) : xs) = modify (Map.insert (i, j) y) >> toMap (i + 1, j) (ys : xs)
+type Day = [(State, Buttons, [Int])]
 
 parseDay :: String -> Day -- adjust type per puzzle
-parseDay inp = out
+parseDay inp = runParser parseMachine <$> lines inp
   where
-    out = execState (toMap (0, 0) heights) Map.empty
-    heights = map (map (read . (: []))) (lines inp)
+    parseTarget = char '[' *> star ((== '#') <$> oneOf ".#") <* char ']'
+    parseButton = char '(' *> delimitered "," number <* char ')'
+    parseButtons = star $ spaces' *> parseButton <* spaces'
+    parseVoltage = char '{' *> delimitered "," number <* char '}'
+    parseMachine = (,,) <$> parseTarget <*> parseButtons <*> parseVoltage
 
-starts :: Day -> [Coord]
-starts = Map.keys . Map.filter (== 0)
+push' :: State -> [Int] -> State
+push' x y = push y x
 
-adjecent :: Coord -> Int -> [(Coord, Int)]
-adjecent (x, y) i = map (,i) [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
-
-findHeights :: Day -> Int -> Map.Map Coord Int -> Map.Map Coord Int
-findHeights _ 9 x = x
-findHeights heights h coords = findHeights heights (h + 1) nextLocations
+push :: [Int] -> State -> State
+push [] x = x
+push (x : xs) s = push xs s'
   where
-    nextLocations = foldl updateThis Map.empty $ filter isGood options
-    updateThis m (coord, count) = Map.insertWith (+) coord count m
-    options = concatMap (uncurry adjecent) (Map.toList coords)
-    isGood (x, _) = heights Map.!? x == Just (h + 1)
+    s' = adjust not x s
 
-findHeightsFrom :: Day -> Coord -> Map.Map Coord Int
-findHeightsFrom heights coord = findHeights heights 0 $ Map.singleton coord 1
+pushVoltage :: [Int] -> [Int] -> [Int]
+pushVoltage at [] = at
+pushVoltage at (x : xs) = pushVoltage at' xs
+  where
+    at' = adjust (+ 1) x at
+
+unPushVoltage :: [Int] -> [Int] -> [Int]
+unPushVoltage at [] = at
+unPushVoltage at (x : xs) = pushVoltage at' xs
+  where
+    at' = adjust (+ (-1)) x at
+
+filterVoltage :: [Int] -> [Int] -> St.State (Set [Int]) Bool
+filterVoltage a b
+  | tooBig = pure False
+  | otherwise = do
+      s <- St.get
+      (if b `Set.member` s then pure False else St.put (b `Set.insert` s) $> True)
+  where
+    tooBig = any (uncurry (<)) (zip a b)
+
+pushButtons :: (Ord a, Monad m) => (a -> m Bool) -> (a -> [Int] -> a) -> Buttons -> Set a -> m (Set a)
+pushButtons fi p buttons start = foldlM (\x y -> Set.union x <$> from y) Set.empty (Set.toList start)
+  where
+    from s = Set.fromList <$> fi `filterM` (p s <$> buttons)
+
+untilFinishes :: (Ord a, Monad m) => (a -> m Bool) -> (a -> [Int] -> a) -> a -> Buttons -> Set a -> m Int
+untilFinishes fi p target bs s
+  | target `Set.member` s = pure 0
+  | otherwise = do
+      ns <- pushButtons fi p bs s
+      c <- untilFinishes fi p target bs ns
+      return $ 1 + c
+
+untilFinishes' :: (State, Buttons, [Int]) -> Maybe Int
+untilFinishes' (a, b, _) = untilFinishes (const $ Just True) push' a b start
+  where
+    start = Set.singleton (replicate (length a) False)
+
+untilFinishesPart2 :: (State, Buttons, [Int]) -> St.State (Set [Int]) Int
+untilFinishesPart2 (_, b, a) = untilFinishes (filterVoltage a) pushVoltage a b start
+  where
+    start = Set.singleton (replicate (length a) 0)
 
 -- Part 2
-part1 :: Day -> Int
-part1 heights = sum $ map length items
-  where
-    items = map (findHeightsFrom heights) (starts heights)
+-- part1 :: Day -> Maybe Int
+part1 day = untilFinishes' <$> day
 
 -- Part 2
-part2 :: Day -> Int
-part2 heights = vs
+-- part2 day = sum $ once <$> day
+--   where
+--     once x = St.evalState (untilFinishesPart2 x) Set.empty
+
+sp :: [Int] -> [Int] -> Maybe Int -> Int -> Bool
+sp _ _ Nothing _ = False
+sp target at (Just b) i = i + maxDif > b
   where
-    vs = sum $ concatMap Map.elems items
-    items = map (findHeightsFrom heights) (starts heights)
+    maxDif = maximum $ dif <$> zip target at
+    dif (a, b) = abs (a - b)
+
+dfs :: [Int] -> Buttons -> [Int] -> Maybe Int -> Int -> Maybe Int
+dfs _ [] _ x _ = x
+dfs target (b : bs) at bound i
+  | shouldPrune = bound
+  | bound == Just i = bound
+  | target == at = trace "Found one" Just i
+  | tooBig = bound
+  | otherwise = do
+      let applied = dfs target (b : bs) pushed bound (i + 1)
+      dfs target bs at applied i
+  where
+    shouldPrune = sp target at bound i
+    pushed = pushVoltage at b
+    tooBig = any (uncurry (<)) (zip target at)
+
+dfs' :: [Int] -> Buttons -> [Int] -> Maybe Int
+dfs' _ [] _ = Nothing
+dfs' target (b : bs) at
+  | tooBig = Nothing
+  | target == at = trace "Found one" Just 0
+  | otherwise = ((+ 1) <$> dfs' target (b : bs) pushed) <|> dfs' target bs at
+  where
+    pushed = pushVoltage at b
+    tooBig = any (uncurry (<)) (zip target at)
+
+part2Dfs ((_, buttons, target) : _) = dfs' target (trace (show sorted) sorted) start
+  where
+    start = replicate (length target) 0
+    buttonOrd :: [Int] -> Int
+    buttonOrd bs = minimum $ (\x -> target !! x) <$> bs
+    sorted = sortBy (comparing buttonOrd) buttons
+
+-- part2 (_ : x : xs) = St.evalState (untilFinishesPart2 x) Set.empty
+part2 = part2Dfs
+
+-- part2 ((a, b, c) : _) = pushButtons (filterVoltage c) pushVoltage b start
+--   where
+--     start = Set.singleton (replicate (length c) 0)
