@@ -36,7 +36,7 @@ executable haskell2
       NanoParsec
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5,
-                       containers, mtl, lens
+                       containers, mtl, lens, SmithNormalForm, matrix
   ghc-options:         -Wall
                        -Wcompat
                        -Widentities

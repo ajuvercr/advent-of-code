@@ -1,13 +1,15 @@
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TupleSections #-}
 
 module Day10 (parseDay, part1, part2) where
 
-import Control.Concurrent (yield)
 import Control.Monad (filterM)
 import qualified Control.Monad.State as St
 import Data.Foldable (foldlM)
 import Data.Functor (($>))
-import Data.List (sortBy)
+import Data.List (sortBy, transpose)
+import qualified Data.Matrix as Matrix
+import Data.Matrix.SmithNormalForm (smithNormalForm)
 import Data.Ord (comparing)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -120,7 +122,7 @@ dfs' _ [] _ = Nothing
 dfs' target (b : bs) at
   | tooBig = Nothing
   | target == at = trace "Found one" Just 0
-  | otherwise = ((+ 1) <$> dfs' target (b : bs) pushed) <|> dfs' target bs at
+  | otherwise = (+ 1) <$> dfs' target (b : bs) pushed <|> dfs' target bs at
   where
     pushed = pushVoltage at b
     tooBig = any (uncurry (<)) (zip target at)
@@ -129,11 +131,35 @@ part2Dfs ((_, buttons, target) : _) = dfs' target (trace (show sorted) sorted) s
   where
     start = replicate (length target) 0
     buttonOrd :: [Int] -> Int
-    buttonOrd bs = minimum $ (\x -> target !! x) <$> bs
+    buttonOrd bs = minimum $ (target !!) <$> bs
     sorted = sortBy (comparing buttonOrd) buttons
 
+buildColumn :: Int -> Int -> [Int] -> [Integer]
+buildColumn m a []
+  | m <= a = []
+  | otherwise = 0 : buildColumn m (a + 1) []
+buildColumn m a (x : xs)
+  | a == x = 1 : buildColumn m (a + 1) xs
+  | otherwise = 0 : buildColumn m (a + 1) (x : xs)
+
 -- part2 (_ : x : xs) = St.evalState (untilFinishesPart2 x) Set.empty
-part2 = part2Dfs
+part2 ((_, buttons, target) : _) = (mat, normalForm)
+  where
+    mats@(f : _) = transpose $ buildColumn (length target) 0 <$> buttons
+    mat = Matrix.fromList (length mats) (length f) (concat mats) :: Matrix.Matrix Integer
+    normalForm = smithNormalForm mat
+
+-- part2 _ = = do
+--   result <- optimize Lexicographic $ do
+--     x <- sInteger "x"
+--     y <- sInteger "y"
+--
+--     constrain $ x + y .>= 10
+--     constrain $ x - y .<= 3
+--
+--     minimize "objective" (x + y)
+--
+-- print result
 
 -- part2 ((a, b, c) : _) = pushButtons (filterVoltage c) pushVoltage b start
 --   where

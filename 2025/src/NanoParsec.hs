@@ -152,3 +152,8 @@ delimitered :: String -> Parser a -> Parser [a]
 delimitered del p = do
   a <- p
   (reserved del >> (a :) <$> delimitered del p) <|> return [a]
+
+check :: (Char -> Bool) -> Parser ()
+check f = Parser $ \case
+  c : cs -> if f c then pure ((), c : cs) else empty
+  _ -> empty

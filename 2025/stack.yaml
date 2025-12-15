@@ -3,3 +3,7 @@ compiler: ghc-9.6.6
 
 packages:
   - .
+extra-deps:
+- SmithNormalForm-0.1.0.0
+
+allow-newer: true
